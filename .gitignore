@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon\r
+._*
+
+# Xcode / Swift
+.build/
+SwiftApp/BuildCache/
+SwiftApp/ripr
+SwiftApp/lennartlol*
+
+# Application Bundles & Disk Images
+*.app/
+*.dmg
+dist_dmg/
+
+# Heavy Standalone Binaries (Download via setup_binaries.sh)
+Binaries/
+
+# Python (Legacy / Scripts)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/

@@ -1,0 +1,22 @@
+Hier kannst du deine echten Icons (SVG, PNG, JPG, PDF) hineinlegen!
+
+Unterstützte Dateinamen für native Plattform-Erkennung:
+---------------------------------------------------------------------------------
+[Bereits aktiv]
+1.  YouTube:        youtube.svg     / youtube.png
+2.  TikTok:         tiktok.svg      / tiktok.png
+3.  Instagram:      instagram.svg   / instagram.png
+4.  X (Twitter):    x.svg           / twitter.svg     (oder .png)
+5.  Reddit:         reddit.svg      / reddit.png
+6.  Twitch:         twitch.svg      / twitch.png
+
+[Verfügbar zum Hinzufügen]
+7.  Facebook:       facebook.svg    / facebook.png
+8.  SoundCloud:     soundcloud.svg  / soundcloud.png
+9.  Pinterest:      pinterest.svg   / pinterest.png
+10. Vimeo:          vimeo.svg       / vimeo.png
+11. Universal Web:  universal.svg   / universal.png   (für 1.800+ Mediatheken & Webseiten)
+12. App-Logo:       logo.svg        / logo.png        (Haupt-Logo auf der Startseite)
+
+Hinweis:
+SVGs werden beim Kompilieren vollautomatisch in gestochen scharfe Retina-Grafiken mit Transparenz umgewandelt!

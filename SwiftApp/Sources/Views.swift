@@ -1,0 +1,1746 @@
+import SwiftUI
+import AppKit
+
+// MARK: - Native macOS Visual Effect (Liquid Glass / Frosted Glass)
+public struct VisualEffectView: NSViewRepresentable {
+    public var material: NSVisualEffectView.Material = .sidebar
+    public var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
+
+    public init(material: NSVisualEffectView.Material = .sidebar, blendingMode: NSVisualEffectView.BlendingMode = .behindWindow) {
+        self.material = material
+        self.blendingMode = blendingMode
+    }
+
+    public func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        view.wantsLayer = true
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+    }
+}
+
+// MARK: - Platform Extensions for Themes & Gradients
+extension Platform {
+    public var themeColor: Color {
+        brandColor
+    }
+
+    public var brandColor: Color {
+        switch self {
+        case .auto: return Color(red: 0.18, green: 0.55, blue: 1.0)
+        case .youtube: return Color(red: 1.0, green: 0.0, blue: 0.0) // YouTube Red #FF0000
+        case .tiktok: return Color(red: 0.14, green: 0.96, blue: 0.93) // TikTok Cyan #25F4EE
+        case .instagram: return Color(red: 0.88, green: 0.19, blue: 0.42) // Instagram Magenta #E1306C
+        case .twitter: return Color.primary // X Monochrome
+        case .reddit: return Color(red: 1.0, green: 0.27, blue: 0.0) // Reddit Orange #FF4500
+        case .twitch: return Color(red: 0.57, green: 0.27, blue: 1.0) // Twitch Violet #9146FF
+        case .kick: return Color(red: 0.33, green: 0.99, blue: 0.09) // Kick Neon Green #53FC18
+        case .rumble: return Color(red: 0.52, green: 0.78, blue: 0.26) // Rumble Green #85C742
+        case .facebook: return Color(red: 0.09, green: 0.47, blue: 0.95) // Facebook Blue #1877F2
+        case .pinterest: return Color(red: 0.90, green: 0.0, blue: 0.14) // Pinterest Red #E60023
+        case .vimeo: return Color(red: 0.10, green: 0.72, blue: 0.92) // Vimeo Blue #1AB7EA
+        case .soundcloud: return Color(red: 1.0, green: 0.33, blue: 0.0) // SoundCloud Sunset Orange #FF5500
+        case .daserste: return Color(red: 0.0, green: 0.45, blue: 0.85) // ARD Blue #0073D8
+        case .zdf: return Color(red: 0.98, green: 0.49, blue: 0.10) // ZDF Orange #FA7D19
+        case .universal: return Color(red: 0.25, green: 0.55, blue: 1.0) // Safari Blue
+        }
+    }
+
+    public var gradient: LinearGradient {
+        LinearGradient(
+            colors: [brandColor, brandColor.opacity(0.8)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    public var buttonTextColor: Color {
+        switch self {
+        case .tiktok, .kick:
+            return .black
+        default:
+            return .white
+        }
+    }
+}
+
+// MARK: - Liquid Glass Button Styles
+public struct LiquidGlassButtonStyle: ButtonStyle {
+    public var cornerRadius: CGFloat
+    public var horizontalPadding: CGFloat
+    public var verticalPadding: CGFloat
+
+    public init(cornerRadius: CGFloat = 10, horizontalPadding: CGFloat = 14, verticalPadding: CGFloat = 7) {
+        self.cornerRadius = cornerRadius
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(.regularMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(configuration.isPressed ? 0.2 : 0.38), Color.white.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+            )
+            .shadow(color: Color.black.opacity(configuration.isPressed ? 0.04 : 0.12), radius: 6, x: 0, y: 2)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+public struct ProminentGlassButtonStyle: ButtonStyle {
+    public var gradient: LinearGradient
+    public var shadowColor: Color
+    public var textColor: Color
+    public var cornerRadius: CGFloat
+    public var horizontalPadding: CGFloat
+    public var verticalPadding: CGFloat
+
+    public init(
+        gradient: LinearGradient = LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.8)], startPoint: .topLeading, endPoint: .bottomTrailing),
+        shadowColor: Color = Color.accentColor,
+        textColor: Color = .white,
+        cornerRadius: CGFloat = 12,
+        horizontalPadding: CGFloat = 16,
+        verticalPadding: CGFloat = 8
+    ) {
+        self.gradient = gradient
+        self.shadowColor = shadowColor
+        self.textColor = textColor
+        self.cornerRadius = cornerRadius
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .bold))
+            .foregroundColor(textColor)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(gradient)
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.ultraThinMaterial.opacity(0.2))
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(configuration.isPressed ? 0.25 : 0.55), Color.white.opacity(0.12)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(color: shadowColor.opacity(configuration.isPressed ? 0.2 : 0.4), radius: configuration.isPressed ? 4 : 8, x: 0, y: configuration.isPressed ? 2 : 3)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Shared Tab Router
+public final class TabRouter: ObservableObject {
+    public static let shared = TabRouter()
+
+    @Published public var selectedTab: String = "Download"
+
+    public func navigateToDownload() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            selectedTab = "Download"
+        }
+    }
+}
+
+// MARK: - Standard Tab Hero Header
+public struct TabHeroHeader: View {
+    public let icon: String
+    public let color: Color
+    public let title: String
+    public let subtitle: String
+
+    public var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.12))
+                    .frame(width: 72, height: 72)
+                    .blur(radius: 8)
+
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 64, height: 64)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(colors: [Color.white.opacity(0.4), Color.white.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: color.opacity(0.3), radius: 10, x: 0, y: 4)
+
+                Image(systemName: icon)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundColor(color)
+            }
+
+            Text(title)
+                .font(.system(size: 22, weight: .bold))
+
+            Text(subtitle)
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 540)
+        }
+    }
+}
+
+// MARK: - Asset & Real Icon Loader
+public struct BrandIconView: View {
+    public let platform: Platform?
+    public let customName: String?
+    public let fallbackSymbol: String
+    public let size: CGFloat
+    public let color: Color?
+
+    public init(platform: Platform? = nil, customName: String? = nil, fallbackSymbol: String = "sparkles", size: CGFloat = 20, color: Color? = .accentColor) {
+        self.platform = platform
+        self.customName = customName
+        self.fallbackSymbol = fallbackSymbol
+        self.size = size
+        self.color = color
+    }
+
+    private var loadedImage: NSImage? {
+        var candidateNames: [String] = []
+        if let customName = customName {
+            candidateNames.append(customName)
+            if customName == "rlogo" || customName == "logo" || customName == "app_logo" {
+                candidateNames.append(contentsOf: ["rlogo", "r_logo", "r logo", "logo"])
+            }
+        }
+        if let p = platform {
+            switch p {
+            case .youtube:
+                candidateNames.append(contentsOf: ["youtube", "YouTube"])
+            case .tiktok:
+                candidateNames.append(contentsOf: ["tiktok", "TikTok"])
+            case .instagram:
+                candidateNames.append(contentsOf: ["instagram", "Instagram"])
+            case .twitter:
+                candidateNames.append(contentsOf: ["x", "twitter", "Twitter", "X"])
+            case .reddit:
+                candidateNames.append(contentsOf: ["reddit", "Reddit"])
+            case .twitch:
+                candidateNames.append(contentsOf: ["twitch", "Twitch"])
+            case .kick:
+                candidateNames.append(contentsOf: ["kick", "Kick"])
+            case .rumble:
+                candidateNames.append(contentsOf: ["rumble", "Rumble"])
+            case .facebook:
+                candidateNames.append(contentsOf: ["facebook", "Facebook", "fb"])
+            case .pinterest:
+                candidateNames.append(contentsOf: ["pinterest", "Pinterest"])
+            case .vimeo:
+                candidateNames.append(contentsOf: ["vimeo", "Vimeo"])
+            case .soundcloud:
+                candidateNames.append(contentsOf: ["soundcloud", "SoundCloud"])
+            case .daserste:
+                candidateNames.append(contentsOf: ["daserste", "ard", "ARD"])
+            case .zdf:
+                candidateNames.append(contentsOf: ["zdf", "ZDF"])
+            case .universal:
+                candidateNames.append(contentsOf: ["universal", "globe", "web"])
+            case .auto:
+                candidateNames.append(contentsOf: ["rlogo", "logo", "sparkles"])
+            }
+        }
+        if candidateNames.isEmpty {
+            candidateNames = ["rlogo", "logo", "sparkles"]
+        }
+
+        for name in candidateNames {
+            for ext in ["png", "svg", "pdf", "jpg", "jpeg", "webp"] {
+                // 1. App Bundle Resources
+                if let url = Bundle.main.url(forResource: name, withExtension: ext),
+                   let img = NSImage(contentsOf: url) {
+                    return img
+                }
+                // 2. Local Icons directory in project folder or adjacent
+                let localPaths = [
+                    URL(fileURLWithPath: "Icons/\(name).\(ext)"),
+                    Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("Icons/\(name).\(ext)")
+                ]
+                for p in localPaths {
+                    if FileManager.default.fileExists(atPath: p.path), let img = NSImage(contentsOf: p) {
+                        return img
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    public var body: some View {
+        let tint = color ?? platform?.brandColor ?? .accentColor
+        if let img = loadedImage {
+            Image(nsImage: img)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .foregroundColor(tint)
+        } else {
+            Image(systemName: platform?.iconName ?? fallbackSymbol)
+                .font(.system(size: size * 0.85, weight: .semibold))
+                .foregroundColor(tint)
+                .frame(width: size, height: size)
+        }
+    }
+}
+
+public struct PlatformBadge: View {
+    public let name: String
+    public let icon: String
+    public var color: Color? = nil
+    public var platform: Platform? = nil
+
+    public init(name: String, icon: String, color: Color? = nil, platform: Platform? = nil) {
+        self.name = name
+        self.icon = icon
+        self.color = color
+        self.platform = platform
+    }
+
+    public var body: some View {
+        let badgeColor = color ?? platform?.brandColor ?? .accentColor
+        HStack(spacing: 7) {
+            BrandIconView(platform: platform, customName: name.lowercased(), fallbackSymbol: icon, size: 14, color: badgeColor)
+            Text(name)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundColor(.primary.opacity(0.88))
+        }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(.ultraThinMaterial))
+        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.6))
+        .shadow(color: badgeColor.opacity(0.18), radius: 5, x: 0, y: 2)
+    }
+}
+
+// MARK: - Animated Infinite Platform Marquee Carousel Banner
+public struct PlatformMarqueeBanner: View {
+    let platforms: [Platform] = [
+        .youtube, .tiktok, .instagram, .twitter, .reddit,
+        .twitch, .kick, .rumble, .facebook, .soundcloud,
+        .pinterest, .vimeo, .daserste, .zdf, .universal
+    ]
+
+    private let speed: Double = 24.0
+    private let spacing: CGFloat = 34
+
+    public var body: some View {
+        TimelineView(.animation) { timeline in
+            MarqueeContent(
+                platforms: platforms,
+                date: timeline.date,
+                speed: speed,
+                spacing: spacing
+            )
+        }
+        .frame(width: 400, height: 52)
+        .clipped()
+        .mask(
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.0),
+                    .init(color: .black.opacity(0.1), location: 0.06),
+                    .init(color: .black, location: 0.25),
+                    .init(color: .black, location: 0.75),
+                    .init(color: .black.opacity(0.1), location: 0.94),
+                    .init(color: .clear, location: 1.0)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+    }
+}
+
+private struct MarqueeContent: View {
+    let platforms: [Platform]
+    let date: Date
+    let speed: Double
+    let spacing: CGFloat
+
+    @State private var rowWidth: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { _ in
+            let effectiveWidth = rowWidth > 0 ? rowWidth : 1200
+            // Bewege langsam von links nach rechts
+            let currentOffset = CGFloat(date.timeIntervalSinceReferenceDate * speed)
+                .truncatingRemainder(dividingBy: effectiveWidth)
+
+            HStack(spacing: spacing) {
+                badgeGroup
+                    .background(
+                        GeometryReader { rowProxy in
+                            Color.clear.preference(key: MarqueeWidthPreferenceKey.self, value: rowProxy.size.width + spacing)
+                        }
+                    )
+                badgeGroup
+                badgeGroup
+            }
+            .offset(x: currentOffset - effectiveWidth)
+        }
+        .onPreferenceChange(MarqueeWidthPreferenceKey.self) { newWidth in
+            if newWidth > 0 && self.rowWidth != newWidth {
+                self.rowWidth = newWidth
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var badgeGroup: some View {
+        HStack(spacing: spacing) {
+            ForEach(platforms) { platform in
+                BrandIconView(
+                    platform: platform,
+                    customName: nil,
+                    fallbackSymbol: platform.iconName,
+                    size: 36,
+                    color: platform.brandColor
+                )
+                .shadow(color: platform.brandColor.opacity(0.35), radius: 8, x: 0, y: 3)
+            }
+        }
+    }
+}
+
+private struct MarqueeWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+// MARK: - Master Video & Download Experience Card
+public struct MasterVideoCard: View {
+    public let metadata: VideoMetadata
+    public let platform: Platform
+    @ObservedObject public var engine: EngineService
+    @Binding public var isAudioMode: Bool
+    @Binding public var selectedFormat: FormatOption?
+    @Binding public var selectedFolder: URL
+    @Binding public var convertToH265: Bool
+    public let onFormatModeChanged: () -> Void
+    public let onChooseFolder: () -> Void
+    public let onStartDownload: () -> Void
+    public let onReset: () -> Void
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            mediaHeader
+
+            Divider().opacity(0.2)
+
+            if engine.isConverting || engine.isDownloading || engine.isAnalyzing {
+                downloadingProgressView
+            } else if engine.finishedFilePath != nil {
+                successView
+            } else {
+                idleConfigView
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: 680)
+        .background(RoundedRectangle(cornerRadius: 18).fill(.regularMaterial))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(LinearGradient(colors: [Color.white.opacity(0.22), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.14), radius: 14, x: 0, y: 5)
+    }
+
+    // 1. Media Preview Header
+    @ViewBuilder
+    private var mediaHeader: some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Thumbnail
+            ZStack(alignment: .bottomTrailing) {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 160, height: 102)
+
+                if let url = metadata.thumbnailURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().aspectRatio(contentMode: .fill)
+                                .frame(width: 160, height: 102).clipped().cornerRadius(12)
+                        default:
+                            Image(systemName: "play.rectangle.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    Image(systemName: "play.rectangle.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary)
+                }
+
+                if !metadata.durationFormatted.isEmpty && metadata.durationFormatted != "0:00" && metadata.durationFormatted != "Unbekannt" {
+                    Text(metadata.durationFormatted)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2.5)
+                        .background(Capsule().fill(Color.black.opacity(0.75)))
+                        .padding(5)
+                }
+            }
+            .frame(width: 160, height: 102)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.12), lineWidth: 0.8))
+            .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(metadata.title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+
+                // Info Zeile: Kanal, Views, Dateigröße
+                HStack(spacing: 10) {
+                    if !metadata.uploader.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 11))
+                            Text(metadata.uploader)
+                                .font(.system(size: 11, weight: .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundColor(.secondary)
+                    }
+
+                    if let views = metadata.viewCountFormatted {
+                        HStack(spacing: 4) {
+                            Image(systemName: "eye.fill")
+                                .font(.system(size: 10))
+                            Text(views)
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(.secondary)
+                    }
+
+                    if let sizeStr = selectedFormat?.estimatedSizeFormatted ?? metadata.estimatedFileSizeFormatted {
+                        HStack(spacing: 4) {
+                            Image(systemName: "internaldrive")
+                                .font(.system(size: 10))
+                            Text(sizeStr)
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(.secondary)
+                    }
+
+                    if metadata.isLive {
+                        HStack(spacing: 5) {
+                            Circle().fill(Color.red).frame(width: 7, height: 7)
+                            Text("LIVE")
+                                .font(.system(size: 10, weight: .heavy))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.red.opacity(0.9)))
+                    }
+                }
+
+                // Format- & Qualitätsauswahl direkt neben dem Thumbnail, bis ganz nach rechts durchgehend!
+                HStack(spacing: 8) {
+                    // Dropdown 1: Format-Typ (Video / Audio)
+                    Menu {
+                        Button(action: {
+                            if isAudioMode {
+                                isAudioMode = false
+                                onFormatModeChanged()
+                            }
+                        }) {
+                            if !isAudioMode {
+                                Label("Video (MP4)", systemImage: "checkmark")
+                            } else {
+                                Label("Video (MP4)", systemImage: "film")
+                            }
+                        }
+
+                        Button(action: {
+                            if !isAudioMode {
+                                isAudioMode = true
+                                onFormatModeChanged()
+                            }
+                        }) {
+                            if isAudioMode {
+                                Label("Audio (MP3)", systemImage: "checkmark")
+                            } else {
+                                Label("Audio (MP3)", systemImage: "waveform")
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: isAudioMode ? "waveform" : "film")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.accentColor)
+
+                            Text(isAudioMode ? "Audio (MP3)" : "Video (MP4)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.primary)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(width: 140, height: 36)
+                        .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.1), lineWidth: 0.6))
+                        .contentShape(Rectangle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .disabled(engine.isDownloading || engine.isConverting || engine.isAnalyzing)
+
+                    // Dropdown 2: Qualität / Format (geht komplett bis nach rechts durch!)
+                    Menu {
+                        ForEach(isAudioMode ? metadata.audioOptions : metadata.videoOptions) { opt in
+                            Button(action: { selectedFormat = opt }) {
+                                if selectedFormat?.id == opt.id {
+                                    Label(opt.display, systemImage: "checkmark")
+                                } else {
+                                    Text(opt.display)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: isAudioMode ? "waveform.badge.magnifyingglass" : "sparkles.tv")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12))
+
+                            Text(selectedFormat?.display ?? (isAudioMode ? metadata.audioOptions.first?.display : metadata.videoOptions.first?.display) ?? "Beste Qualität")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.06)))
+                        .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.white.opacity(0.1), lineWidth: 0.6))
+                        .contentShape(Rectangle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .disabled(engine.isDownloading || engine.isConverting || engine.isAnalyzing)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // 2. Success View
+    @ViewBuilder
+    private var successView: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.system(size: 20, weight: .bold))
+
+                Text("Download erfolgreich abgeschlossen!")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.primary)
+
+                Spacer()
+            }
+
+            if let path = engine.finishedFilePath {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.fill")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 12))
+
+                    Text(URL(fileURLWithPath: path).lastPathComponent)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Spacer()
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+            }
+
+            HStack(spacing: 12) {
+                Button(action: { engine.revealInFinder() }) {
+                    Label("Im Finder anzeigen", systemImage: "folder.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 12))
+
+                Button(action: { engine.openFile() }) {
+                    Label("Jetzt abspielen", systemImage: "play.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(ProminentGlassButtonStyle(gradient: platform.gradient, shadowColor: platform.themeColor, cornerRadius: 12))
+            }
+
+            if !isAudioMode && !engine.isConverting && !engine.statusText.contains("H.265") && !(engine.finishedFilePath?.contains("[H265]") ?? false) {
+                Button(action: { engine.convertCurrentFileToH265() }) {
+                    Label("Nachträglich in H.265 (HEVC) umwandeln", systemImage: "bolt.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 12))
+            }
+
+            Button(action: onReset) {
+                Label("Weiteren Download starten", systemImage: "arrow.counterclockwise")
+            }
+            .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 10))
+            .padding(.top, 4)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color.green.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.green.opacity(0.2), lineWidth: 0.8))
+    }
+
+    // 3. Downloading Progress View
+    @ViewBuilder
+    private var downloadingProgressView: some View {
+        VStack(spacing: 14) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: engine.isConverting ? "bolt.fill" : (engine.isLive ? "record.circle.fill" : "arrow.down.circle.fill"))
+                        .foregroundColor(engine.isConverting ? .accentColor : (engine.isLive ? .red : platform.themeColor))
+                        .font(.system(size: 17, weight: .bold))
+
+                    Text(engine.statusText)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.primary)
+                }
+
+                Spacer()
+
+                Button(action: { engine.cancel() }) {
+                    Label(engine.isLive ? "Aufnahme beenden" : "Abbrechen", systemImage: engine.isLive ? "stop.fill" : "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.red.opacity(0.15)))
+                        .overlay(Capsule().stroke(Color.red.opacity(0.3), lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if engine.isAnalyzing || (engine.isLive && engine.isDownloading) {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .tint(platform.themeColor)
+            } else {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.08))
+                            .frame(height: 8)
+
+                        Capsule()
+                            .fill(platform.gradient)
+                            .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(engine.percent / 100.0))), height: 8)
+                            .animation(.linear(duration: 0.2), value: engine.percent)
+                    }
+                }
+                .frame(height: 8)
+            }
+
+            HStack(spacing: 10) {
+                if !engine.isLive && (engine.isDownloading || engine.isConverting) {
+                    Text(String(format: "%.1f %%", engine.percent))
+                        .font(.system(size: 13, weight: .heavy))
+                        .foregroundColor(.primary)
+                }
+
+                if !engine.detailsText.isEmpty {
+                    Text(engine.detailsText)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if !engine.etaText.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 10))
+                        Text(engine.etaText)
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3.5)
+                    .background(Capsule().fill(Color.green.opacity(0.18)))
+                }
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.1), lineWidth: 0.8))
+    }
+
+    // 4. Idle / Configuration View
+    @ViewBuilder
+    private var idleConfigView: some View {
+        VStack(spacing: 10) {
+            // Speichern in:
+            HStack(spacing: 10) {
+                Image(systemName: "folder.fill")
+                    .foregroundColor(.accentColor)
+                    .font(.system(size: 13))
+
+                Text("Speichern in:")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+
+                Text(selectedFolder.lastPathComponent)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.primary)
+
+                Text("(\(selectedFolder.path))")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary.opacity(0.7))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer()
+
+                Button(action: onChooseFolder) {
+                    Text("Ändern")
+                }
+                .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 0.6))
+
+            // H.265 Checkbox im gleichen Design
+            if !isAudioMode {
+                HStack(spacing: 10) {
+                    Image(systemName: "film.stack")
+                        .foregroundColor(.accentColor)
+                        .font(.system(size: 13))
+
+                    Text("Automatisch in H.265 (HEVC) umwandeln")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary)
+
+                    Text("• Apple Silicon Hardwarebeschleunigung")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary.opacity(0.8))
+
+                    Spacer()
+
+                    Toggle("", isOn: $convertToH265)
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 0.6))
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    convertToH265.toggle()
+                }
+            }
+
+            if let err = engine.errorMessage {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                        .font(.system(size: 13))
+
+                    Text(err)
+                        .font(.system(size: 11))
+                        .foregroundColor(.red)
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.12)))
+            }
+
+            Button(action: onStartDownload) {
+                HStack(spacing: 8) {
+                    Image(systemName: metadata.isLive ? "record.circle.fill" : "arrow.down.circle.fill")
+                        .font(.system(size: 16, weight: .bold))
+                    Text(metadata.isLive ? "Live-Aufnahme starten" : "Jetzt herunterladen")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(
+                ProminentGlassButtonStyle(
+                    gradient: metadata.isLive ? LinearGradient(colors: [Color.red, Color(red: 0.8, green: 0.1, blue: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing) : platform.gradient,
+                    shadowColor: metadata.isLive ? Color.red : platform.themeColor,
+                    cornerRadius: 14
+                )
+            )
+            .padding(.top, 4)
+        }
+    }
+}
+
+// MARK: - Unified Auto Downloader View (Liquid Glass Design)
+public struct AutoDownloaderView: View {
+    @StateObject private var engine = EngineService()
+    @ObservedObject private var settings = SettingsManager.shared
+
+    @State private var urlString: String = ""
+    @State private var detectedPlatform: Platform = .auto
+    @State private var metadata: VideoMetadata? = nil
+    @State private var isAudioMode: Bool = false
+    @State private var selectedFormat: FormatOption? = nil
+    @State private var selectedFolder: URL = SettingsManager.shared.downloadFolder
+    @State private var convertToH265: Bool = SettingsManager.shared.convertToH265
+
+    public var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Spacer(minLength: 16)
+                heroSection
+                inputCard
+                if metadata == nil && !engine.isAnalyzing {
+                    platformBadgesRow
+                }
+                if let meta = metadata {
+                    mediaCard(meta: meta)
+                }
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+        }
+        .onAppear {
+            self.selectedFolder = settings.downloadFolder
+            self.convertToH265 = settings.convertToH265
+        }
+    }
+
+    private var analyzeButtonGradient: LinearGradient {
+        if detectedPlatform != .auto {
+            return detectedPlatform.gradient
+        }
+        return LinearGradient(
+            colors: [Color(red: 0.18, green: 0.55, blue: 1.0), Color(red: 0.22, green: 0.40, blue: 0.95)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var analyzeButtonShadowColor: Color {
+        if detectedPlatform != .auto {
+            return detectedPlatform.brandColor
+        }
+        return Color.accentColor
+    }
+
+    @ViewBuilder
+    private var heroSection: some View {
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                BrandIconView(
+                    platform: nil,
+                    customName: "rlogo",
+                    fallbackSymbol: "sparkles",
+                    size: 34,
+                    color: .white
+                )
+                .shadow(
+                    color: Color.accentColor.opacity(0.45),
+                    radius: 10,
+                    x: 0,
+                    y: 3
+                )
+
+                Text("ripr")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+            }
+
+            Text("Füge einen beliebigen Link von YouTube, TikTok, Instagram, Twitch oder dem Web ein.")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 540)
+        }
+        .padding(.top, 10)
+    }
+
+    @ViewBuilder
+    private var inputCard: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
+                BrandIconView(
+                    platform: detectedPlatform != .auto ? detectedPlatform : nil,
+                    customName: nil,
+                    fallbackSymbol: "link",
+                    size: 20,
+                    color: detectedPlatform != .auto ? detectedPlatform.brandColor : .secondary
+                )
+                .shadow(
+                    color: detectedPlatform != .auto ? detectedPlatform.brandColor.opacity(0.35) : Color.clear,
+                    radius: 6,
+                    x: 0,
+                    y: 2
+                )
+                .frame(width: 26, height: 26)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: detectedPlatform)
+
+                TextField("Link einfügen (YouTube, TikTok etc.)", text: $urlString)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14, weight: .regular))
+                    .onSubmit { handleAnalyzeTap() }
+                    .onChange(of: urlString) { oldUrl, newUrl in
+                        let trimmed = newUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            let plat = Platform.detect(from: trimmed)
+                            self.detectedPlatform = plat
+
+                            // Automatisch analysieren wenn ein kompletter Link eingefügt wurde
+                            let insertedCount = newUrl.count - oldUrl.count
+                            let isLikelyURL = trimmed.hasPrefix("http://") ||
+                                              trimmed.hasPrefix("https://") ||
+                                              trimmed.hasPrefix("www.") ||
+                                              plat != .auto ||
+                                              trimmed.contains(".com") ||
+                                              trimmed.contains(".be") ||
+                                              trimmed.contains(".tv") ||
+                                              trimmed.contains(".net")
+
+                            if isLikelyURL && (insertedCount > 3 || oldUrl.isEmpty) && trimmed.count >= 8 && !engine.isAnalyzing {
+                                startInspect()
+                            }
+                        } else {
+                            detectedPlatform = .auto
+                        }
+                    }
+
+                if !urlString.isEmpty {
+                    Button(action: {
+                        urlString = ""
+                        detectedPlatform = .auto
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 14))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button(action: handleAnalyzeTap) {
+                    HStack(spacing: 7) {
+                        if engine.isAnalyzing {
+                            ProgressView().scaleEffect(0.65).frame(width: 16, height: 16)
+                        } else {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 13, weight: .bold))
+                        }
+                        Text("Analysieren")
+                            .font(.system(size: 13, weight: .bold))
+                    }
+                }
+                .buttonStyle(ProminentGlassButtonStyle(
+                    gradient: analyzeButtonGradient,
+                    shadowColor: analyzeButtonShadowColor,
+                    textColor: detectedPlatform != .auto ? detectedPlatform.buttonTextColor : .white,
+                    cornerRadius: 12,
+                    horizontalPadding: 20,
+                    verticalPadding: 10
+                ))
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: detectedPlatform)
+                .disabled(engine.isAnalyzing)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .frame(maxWidth: 680)
+            .background(RoundedRectangle(cornerRadius: 18).fill(.regularMaterial))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(LinearGradient(colors: [Color.white.opacity(0.28), Color.white.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.12), radius: 14, x: 0, y: 5)
+
+            if engine.isAnalyzing {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Video-Informationen & Qualitäten werden geladen...")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.accentColor)
+                }
+                .padding(.vertical, 2)
+            } else if let err = engine.errorMessage, metadata == nil {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text(err)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.red)
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.12)))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.25), lineWidth: 0.6))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var platformBadgesRow: some View {
+        VStack(spacing: 20) {
+            Text("Unterstützte Plattformen:")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary.opacity(0.85))
+                .textCase(.uppercase)
+                .tracking(0.8)
+
+            PlatformMarqueeBanner()
+        }
+        .padding(.top, 24)
+    }
+
+    @ViewBuilder
+    private func mediaCard(meta: VideoMetadata) -> some View {
+        MasterVideoCard(
+            metadata: meta,
+            platform: detectedPlatform != .auto ? detectedPlatform : .universal,
+            engine: engine,
+            isAudioMode: $isAudioMode,
+            selectedFormat: $selectedFormat,
+            selectedFolder: $selectedFolder,
+            convertToH265: $convertToH265,
+            onFormatModeChanged: { updateDefaultFormat() },
+            onChooseFolder: { chooseFolder() },
+            onStartDownload: { startDownload() },
+            onReset: { reset() }
+        )
+        .transition(.asymmetric(insertion: .scale(scale: 0.97).combined(with: .opacity), removal: .opacity))
+    }
+
+    private func reset() {
+        self.metadata = nil
+        self.selectedFormat = nil
+        self.urlString = ""
+        self.detectedPlatform = .auto
+        self.engine.reset()
+    }
+
+    private func handleAnalyzeTap() {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            pasteAndInspect()
+        } else {
+            startInspect()
+        }
+    }
+
+    private func pasteAndInspect() {
+        if let str = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines), !str.isEmpty {
+            self.urlString = str
+            self.detectedPlatform = Platform.detect(from: str)
+            startInspect()
+        } else {
+            self.engine.errorMessage = "Kein Link in der Zwischenablage gefunden."
+        }
+    }
+
+    private func startInspect() {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        metadata = nil
+        selectedFormat = nil
+        let targetPlat = Platform.detect(from: trimmed)
+        self.detectedPlatform = targetPlat
+        engine.startAnalyzing()
+
+        Task {
+            do {
+                let meta = try await InspectorService.inspect(url: trimmed, platform: targetPlat)
+                await MainActor.run {
+                    self.metadata = meta
+                    self.updateDefaultFormat()
+                    self.engine.finishAnalyzing()
+                }
+            } catch {
+                await MainActor.run {
+                    self.engine.finishAnalyzing()
+                    self.engine.errorMessage = "Analyse fehlgeschlagen: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func updateDefaultFormat() {
+        guard let meta = metadata else { return }
+        if isAudioMode {
+            selectedFormat = meta.audioOptions.first
+        } else {
+            selectedFormat = meta.videoOptions.first
+        }
+    }
+
+    private func startDownload() {
+        guard let meta = metadata, let format = selectedFormat else { return }
+        engine.startDownload(
+            url: urlString.trimmingCharacters(in: .whitespacesAndNewlines),
+            format: format,
+            outputFolder: selectedFolder,
+            platform: detectedPlatform != .auto ? detectedPlatform : .universal,
+            isLive: meta.isLive,
+            convertToH265: convertToH265,
+            title: meta.title,
+            uploader: meta.uploader,
+            thumbnailURL: meta.thumbnailURL?.absoluteString
+        )
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = selectedFolder
+        if panel.runModal() == .OK, let url = panel.url {
+            selectedFolder = url
+            settings.downloadFolder = url
+        }
+    }
+}
+
+// MARK: - Download History View (Liquid Glass)
+public struct HistoryView: View {
+    @ObservedObject private var history = HistoryManager.shared
+
+    public var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Spacer(minLength: 20)
+
+                // Hero Header
+                TabHeroHeader(
+                    icon: "clock.arrow.circlepath",
+                    color: .accentColor,
+                    title: "Download-Historie",
+                    subtitle: "Alle deine heruntergeladenen Videos und Audiospuren übersichtlich an einem Ort."
+                )
+
+                if !history.items.isEmpty {
+                    HStack {
+                        Spacer()
+                        Button(role: .destructive, action: { history.clearAll() }) {
+                            Label("Historie leeren", systemImage: "trash")
+                        }
+                        .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                    }
+                    .frame(maxWidth: 660)
+                }
+
+                if history.items.isEmpty {
+                    VStack(spacing: 14) {
+                        Image(systemName: "tray.fill")
+                            .font(.system(size: 38))
+                            .foregroundColor(.secondary.opacity(0.6))
+                        Text("Keine Downloads in der Historie")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        Text("Erfolgreich heruntergeladene Videos und Audiospuren erscheinen hier automatisch.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary.opacity(0.8))
+                    }
+                    .padding(36)
+                    .frame(maxWidth: 660)
+                    .background(RoundedRectangle(cornerRadius: 18).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 14, x: 0, y: 5)
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(history.items) { item in
+                            HistoryItemCard(item: item, onDelete: { history.remove(item: item) })
+                        }
+                    }
+                    .frame(maxWidth: 660)
+                }
+
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+        }
+    }
+}
+
+public struct HistoryItemCard: View {
+    public let item: DownloadHistoryItem
+    public let onDelete: () -> Void
+
+    public var body: some View {
+        HStack(spacing: 14) {
+            // Thumbnail
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 84, height: 52)
+
+                if let thumbStr = item.thumbnailURL, let url = URL(string: thumbStr) {
+                    AsyncImage(url: url) { phase in
+                        if let img = phase.image {
+                            img.resizable().aspectRatio(contentMode: .fill)
+                                .frame(width: 84, height: 52).clipped().cornerRadius(8)
+                        } else {
+                            Image(systemName: "play.rectangle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    Image(systemName: "film.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(width: 84, height: 52)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+
+            // Details
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    if !item.platform.isEmpty {
+                        Text(item.platform)
+                            .font(.system(size: 10, weight: .bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.accentColor.opacity(0.2)))
+                            .foregroundColor(.accentColor)
+                    }
+
+                    if !item.uploader.isEmpty {
+                        Text(item.uploader)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Text("•").foregroundColor(.secondary)
+                    }
+
+                    Text(item.formatDisplay)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+
+                    Text("•").foregroundColor(.secondary)
+
+                    Text(item.formattedDate)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            // Actions
+            HStack(spacing: 8) {
+                Button(action: {
+                    NSWorkspace.shared.selectFile(item.filePath, inFileViewerRootedAtPath: "")
+                }) {
+                    Image(systemName: "folder.fill")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                .help("Im Finder anzeigen")
+
+                if item.fileExists {
+                    Button(action: {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: item.filePath))
+                    }) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(ProminentGlassButtonStyle(cornerRadius: 8))
+                    .help("Datei abspielen")
+                }
+
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red.opacity(0.8))
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.plain)
+                .help("Aus Historie entfernen")
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 14).fill(.regularMaterial))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.12), lineWidth: 0.6))
+        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
+    }
+}
+
+// MARK: - Settings View (Liquid Glass Design)
+public struct SettingsView: View {
+    @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject private var updater = UpdaterService.shared
+
+    public var body: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Spacer(minLength: 20)
+
+                // Hero Header
+                TabHeroHeader(
+                    icon: "gearshape.fill",
+                    color: .accentColor,
+                    title: "Einstellungen",
+                    subtitle: "Verwalte Standard-Speicherort, Updates für die yt-dlp Engine und Login-Cookies."
+                )
+
+                VStack(alignment: .leading, spacing: 18) {
+                    // Speicherort Card
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Standard-Speicherort", systemImage: "folder.fill")
+                            .font(.system(size: 14, weight: .bold))
+
+                        HStack {
+                            Text(settings.downloadFolder.path)
+                                .font(.system(size: 12))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.06)))
+
+                            Button(action: chooseFolder) {
+                                Label("Ändern...", systemImage: "pencil")
+                            }
+                            .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                        }
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+
+                    // Engine & Updates
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Download-Engine & Updates", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 14, weight: .bold))
+
+                        HStack {
+                            Text("yt-dlp Version: **\(updater.currentVersion)**")
+                                .font(.system(size: 13))
+
+                            Spacer()
+
+                            Button(action: { updater.checkForUpdates() }) {
+                                if updater.isChecking {
+                                    ProgressView().scaleEffect(0.6)
+                                } else {
+                                    Label("Auf Updates prüfen", systemImage: "arrow.clockwise")
+                                }
+                            }
+                            .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                            .disabled(updater.isChecking || updater.isUpdating)
+
+                            if let latest = updater.latestVersion, latest != updater.currentVersion {
+                                Button(action: { updater.performUpdate() }) {
+                                    if updater.isUpdating {
+                                        ProgressView().scaleEffect(0.6)
+                                    } else {
+                                        Label("Auf \(latest) aktualisieren", systemImage: "arrow.up.circle.fill")
+                                    }
+                                }
+                                .buttonStyle(ProminentGlassButtonStyle(cornerRadius: 8))
+                                .disabled(updater.isUpdating)
+                            }
+                        }
+
+                        if !updater.statusMessage.isEmpty {
+                            Text(updater.statusMessage)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.green)
+                        }
+
+                        Text(updater.ffmpegStatus)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+
+                        Divider().opacity(0.15)
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Automatische Hintergrund-Updates")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Text("Aktualisiert yt-dlp automatisch im Hintergrund, wenn Plattformen Änderungen vornehmen.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Toggle("", isOn: $settings.autoUpdateYtDlp)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                        }
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+
+                    // Cookies & Authentifizierung
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Browser-Cookies & Login", systemImage: "lock.shield.fill")
+                            .font(.system(size: 14, weight: .bold))
+
+                        Text("Aktive Login-Cookies können verwendet werden, um geschützte Inhalte (z.B. Instagram Reels) zuverlässig zu laden.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+
+                        Picker("Browser für Cookies:", selection: $settings.cookieBrowser) {
+                            Text("Keine Cookies (Anonym)").tag("none")
+                            Text("Google Chrome").tag("chrome")
+                            Text("Mozilla Firefox").tag("firefox")
+                            Text("Apple Safari (Festplattenvollzugriff nötig)").tag("safari")
+                            Text("Brave Browser").tag("brave")
+                            Text("Eigene cookies.txt Datei").tag("custom_file")
+                        }
+
+                        if settings.cookieBrowser == "custom_file" {
+                            HStack {
+                                TextField("Pfad zu cookies.txt...", text: $settings.cookieFilePath)
+                                    .textFieldStyle(.roundedBorder)
+
+                                Button(action: chooseCookieFile) {
+                                    Label("Datei wählen...", systemImage: "doc")
+                                }
+                                .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                            }
+                        }
+
+                        Divider().opacity(0.3)
+
+                        Text("Cookies auf folgenden Plattformen verwenden:")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary)
+
+                        Toggle("Instagram (Empfohlen für Reels)", isOn: $settings.useCookiesInstagram)
+                        Toggle("YouTube (Standard: aus, da Google oft Bot-Prüfungen triggert)", isOn: $settings.useCookiesYouTube)
+                        Toggle("Twitch", isOn: $settings.useCookiesTwitch)
+                        Toggle("Universal / Sonstige", isOn: $settings.useCookiesUniversal)
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+
+                    // Medien Optionen
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Mediendatei-Optionen", systemImage: "slider.horizontal.3")
+                            .font(.system(size: 14, weight: .bold))
+
+                        Toggle("Automatisch in H.265 (HEVC) umwandeln (Apple Silicon)", isOn: $settings.convertToH265)
+                        Toggle("Thumbnail als Cover-Bild in Datei einbetten", isOn: $settings.embedThumbnail)
+                        Toggle("Metadaten & Kapitel einbetten", isOn: $settings.embedMetadata)
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+                }
+                .frame(maxWidth: 640)
+
+                Spacer(minLength: 40)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+        }
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = settings.downloadFolder
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.downloadFolder = url
+        }
+    }
+
+    private func chooseCookieFile() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.plainText]
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.cookieFilePath = url.path
+        }
+    }
+}
+
+// MARK: - Floating Liquid Glass Tab Bar (SF Symbols)
+public struct GlassTabBar: View {
+    @Binding var selectedTab: String
+
+    let tabs: [(id: String, name: String, icon: String)] = [
+        ("Download", "Download", "sparkles"),
+        ("History", "Historie", "clock.arrow.circlepath"),
+        ("Settings", "Einstellungen", "gearshape.fill")
+    ]
+
+    public var body: some View {
+        HStack(spacing: 4) {
+            ForEach(tabs, id: \.id) { tab in
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                        selectedTab = tab.id
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 13, weight: .semibold))
+
+                        Text(tab.name)
+                            .font(.system(size: 13, weight: selectedTab == tab.id ? .bold : .medium))
+                    }
+                    .foregroundColor(selectedTab == tab.id ? .white : .primary.opacity(0.75))
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
+                    .background(
+                        Group {
+                            if selectedTab == tab.id {
+                                Capsule()
+                                    .fill(Color.accentColor.opacity(0.85))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
+                                    )
+                                    .shadow(color: Color.accentColor.opacity(0.4), radius: 8, x: 0, y: 3)
+                            } else {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.001))
+                            }
+                        }
+                    )
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(5)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            Capsule()
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.35), Color.white.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+        )
+        .shadow(color: Color.black.opacity(0.18), radius: 14, x: 0, y: 5)
+    }
+}
+
+// MARK: - Main Content View (Liquid Glass Shell)
+public struct ContentView: View {
+    @ObservedObject private var router = TabRouter.shared
+
+    public var body: some View {
+        ZStack {
+            VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Obere schwebende Liquid-Glass Leiste
+                VStack(spacing: 8) {
+                    HStack {
+                        Spacer()
+                    }
+                    .frame(height: 14)
+
+                    GlassTabBar(selectedTab: $router.selectedTab)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+                // Tab Content
+                Group {
+                    switch router.selectedTab {
+                    case "Download":
+                        AutoDownloaderView()
+                    case "History":
+                        HistoryView()
+                    case "Settings":
+                        SettingsView()
+                    default:
+                        AutoDownloaderView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(width: 900, height: 680)
+    }
+}
