@@ -4,15 +4,31 @@ Hier werden alle Änderungen, neuen Funktionen und Fehlerbehebungen nach jedem R
 
 ---
 
-## 🚀 [Unreleased] (Vorbereitung für v1.0.3)
+## 📦 [v1.1.0] — 2026-09-19
 
-### 🔔 macOS System-Benachrichtigungen & Finder-Integration
-- **Download-Fertigstellungsmeldung**: Sendet automatisch eine native macOS-Mitteilung (Banner & Ton), sobald ein Download oder eine Live-Aufnahme abgeschlossen ist.
-- **Interaktive Buttons**:
-  - Button **„Im Finder anzeigen“** (und Direktklick auf das Banner) markiert die heruntergeladene Datei sofort im Finder.
-  - Zusätzlicher Button **„Öffnen“** zum direkten Abspielen der Datei.
-- **Vordergrund-Support**: Mitteilung wird dank speziellem Delegate auch dann zuverlässig angezeigt, wenn ripr im Vordergrund geöffnet ist.
-- **Einstellungs-Steuerung**: Neuer Schalter im Tab **Einstellungen** zur Aktivierung/Deaktivierung der Download-Mitteilungen.
+### 📑 Playlists & Sammlungen herunterladen
+- **Intelligente Playlist-Erkennung**: Erkennt reine Playlist-Links sowie Kombinations-URLs (Video + Playlist) automatisch bei YouTube, SoundCloud und weiteren Plattformen.
+- **Kombi-Link Switcher**: Erlaubt die intuitive Wahl zwischen „Nur dieses Video laden“ und „Ganze Playlist laden“.
+- **Neue Master Playlist Card**:
+  - Übersichtliche Darstellung von Cover, Gesamttitel, Uploader, Gesamtspielzeit und Track-Anzahl.
+  - Modus-Umschaltung für **Video** (Beste Qualität, 1080p, 720p, etc.) und **Audio** (MP3 320 kbps, M4A, FLAC, WAV).
+  - Schnellauswahl mit Buttons **„Alle“** und **„Keine“** sowie individuelle Track-Auswahl per Checkbox.
+  - Optionale Speicherung im eigenen Unterordner sowie automatische Durchnummerierung (`01 - Title.mp4`).
+- **Zuverlässiger Playlist-Download**: Engine erkennt erfolgreiche Downloads auch dann, wenn einzelne geschützte oder gelöschte Tracks von yt-dlp übersprungen wurden.
+
+### 🔔 macOS Benachrichtigungen & Finder-Integration
+- **Fertigstellungs-Mitteilung**: Sendet eine native macOS-Benachrichtigung mit Ton, sobald ein Download oder eine Playlist abgeschlossen ist.
+- **In-App Toast**: Schwebendes Glass-Banner mit Schnellzugriff („Im Finder anzeigen“ / „Öffnen“).
+- **Direktzugriff im Finder**: Ein Klick auf „Im Finder anzeigen“ öffnet bei Playlists direkt den neuen Zielordner mit allen Dateien.
+- **AppleScript-Fallback**: Garantiert visuelle Rückmeldung selbst dann, wenn macOS-Mitteilungen in den Systemeinstellungen noch nicht manuell freigegeben wurden.
+
+### 📜 Download-Historie für Playlists & Tracks
+- Alle Downloads und Playlists werden automatisch mit Datum, Plattform, Format und Dateianzahl in der Historie festgehalten.
+- Playlists erhalten ein eigenes Ordnersymbol und können direkt aus der Historie im Finder geöffnet werden.
+
+### 🎨 Design & Scrollbar-Polishing
+- **Plattform-Farben für Playlists**: Die Playlist-Karte übernimmt die native Farbe der Plattform (z. B. originales **YouTube-Rot** `#FF0000` für Badge, Auswahl-Häkchen, Ladebalken und Download-Button).
+- **Unsichtbare Scrollbalken**: Aufhebung störender macOS-Scrollbalken auf AppKit-Ebene (`ScrollbarHider`) für eine makellose Optik bei uneingeschränkter Mausrad- und Trackpad-Bedienung.
 
 ---
 
