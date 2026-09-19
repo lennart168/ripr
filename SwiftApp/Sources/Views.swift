@@ -26,6 +26,77 @@ public struct VisualEffectView: NSViewRepresentable {
     }
 }
 
+// MARK: - AppKit ScrollBar Stripper (hides scrollers while preserving scrolling)
+public struct ScrollbarHider: NSViewRepresentable {
+    public init() {}
+
+    public func makeNSView(context: Context) -> ScrollbarHidingNSView {
+        ScrollbarHidingNSView()
+    }
+
+    public func updateNSView(_ nsView: ScrollbarHidingNSView, context: Context) {
+        nsView.stripScrollers()
+    }
+}
+
+public final class ScrollbarHidingNSView: NSView {
+    public override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        stripScrollers()
+    }
+
+    public override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        stripScrollers()
+    }
+
+    public override func layout() {
+        super.layout()
+        stripScrollers()
+    }
+
+    public func stripScrollers() {
+        if let enclosing = self.enclosingScrollView {
+            Self.disableScrollers(on: enclosing)
+        }
+        window?.contentView?.hideAllScrollBars()
+    }
+
+    public static func disableScrollers(on sv: NSScrollView) {
+        if sv.hasVerticalScroller {
+            sv.hasVerticalScroller = false
+        }
+        if sv.hasHorizontalScroller {
+            sv.hasHorizontalScroller = false
+        }
+        sv.verticalScroller?.isHidden = true
+        sv.horizontalScroller?.isHidden = true
+        sv.verticalScroller?.alphaValue = 0
+        sv.horizontalScroller?.alphaValue = 0
+        sv.scrollerStyle = .overlay
+        sv.autohidesScrollers = true
+    }
+}
+
+public extension NSView {
+    func hideAllScrollBars() {
+        if let sv = self as? NSScrollView {
+            ScrollbarHidingNSView.disableScrollers(on: sv)
+        }
+        for subview in subviews {
+            subview.hideAllScrollBars()
+        }
+    }
+}
+
+public extension View {
+    func removeScrollBars() -> some View {
+        self
+            .scrollIndicators(.hidden)
+            .background(ScrollbarHider())
+    }
+}
+
 // MARK: - Platform Extensions for Themes & Gradients
 extension Platform {
     public var themeColor: Color {
@@ -965,8 +1036,9 @@ public struct AutoDownloaderView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 10)
+            .background(ScrollbarHider())
         }
-        .scrollIndicators(.hidden)
+        .removeScrollBars()
         .onAppear {
             self.selectedFolder = settings.downloadFolder
             self.convertToH265 = settings.convertToH265
@@ -1321,8 +1393,9 @@ public struct HistoryView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 10)
+            .background(ScrollbarHider())
         }
-        .scrollIndicators(.hidden)
+        .removeScrollBars()
     }
 }
 
@@ -1848,8 +1921,9 @@ public struct SettingsView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 10)
+            .background(ScrollbarHider())
         }
-        .scrollIndicators(.hidden)
+        .removeScrollBars()
     }
 
     private func chooseFolder() {
@@ -2254,5 +2328,7 @@ public struct ContentView: View {
             }
         }
         .frame(width: 900, height: 680)
+        .background(ScrollbarHider())
+        .removeScrollBars()
     }
 }

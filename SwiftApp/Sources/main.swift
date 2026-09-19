@@ -43,6 +43,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.maxSize = fixedSize
                 window.styleMask.remove(.resizable)
                 window.center()
+                window.contentView?.hideAllScrollBars()
+            }
+        }
+
+        // Global Scrollbars in allen NSScrollViews unterbinden
+        NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            for window in NSApplication.shared.windows {
+                window.contentView?.hideAllScrollBars()
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSView.frameDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            for window in NSApplication.shared.windows {
+                window.contentView?.hideAllScrollBars()
             }
         }
 
