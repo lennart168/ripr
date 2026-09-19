@@ -1008,9 +1008,23 @@ public struct AutoDownloaderView: View {
                     y: 3
                 )
 
-                Text("ripr")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("ripr")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule().fill(Color.primary.opacity(0.07))
+                        )
+                        .overlay(
+                            Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+                        )
+                }
             }
 
             Text("Füge einen beliebigen Link von YouTube, TikTok, Instagram, Twitch oder dem Web ein.")
@@ -1602,6 +1616,41 @@ public struct SettingsView: View {
                     .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
                     .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+
+                    // Über ripr & Versionsinfo
+                    HStack(spacing: 14) {
+                        BrandIconView(
+                            platform: nil,
+                            customName: "rlogo",
+                            fallbackSymbol: "sparkles",
+                            size: 28,
+                            color: .white
+                        )
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 8) {
+                                Text("ripr")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.primary)
+
+                                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+                            }
+
+                            Text("100% nativ für Apple Silicon (ARM64) • Erstellt von Lennart")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(14)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.regularMaterial.opacity(0.6)))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                 }
                 .frame(maxWidth: 640)
 
