@@ -1,27 +1,89 @@
 import Foundation
 
 public final class InspectorService {
-    public static func inspect(url: String, platform: Platform) async throws -> VideoMetadata {
-        // 1. Erster Versuch mit konfigurierten Cookies
-        do {
-            return try await runDumpJson(url: url, platform: platform, useCookies: true)
-        } catch {
-            let errStr = error.localizedDescription.lowercased()
-            let isCookieErr = errStr.contains("operation not permitted") ||
-                              errStr.contains("cookies") ||
-                              errStr.contains("the page needs to be reloaded") ||
-                              errStr.contains("could not find")
+    public static func inspect(url: String, platform: Platform) async throws -> InspectionResult {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isPlaylistOnly = trimmed.contains("playlist?list=") ||
+                             (!trimmed.contains("v=") && trimmed.contains("list=")) ||
+                             trimmed.contains("/sets/") ||
+                             trimmed.contains("/albums/")
+        let isCombo = !isPlaylistOnly && trimmed.contains("list=") && (trimmed.contains("v=") || trimmed.contains("watch") || trimmed.contains("youtu.be"))
 
-            if isCookieErr {
-                print("Cookie-Fehler in Swift Inspector. Wiederhole ohne Cookies...")
-                return try await runDumpJson(url: url, platform: platform, useCookies: false)
-            } else {
-                throw error
+        if isCombo {
+            // Kombi-Link: Extrahiere sowohl das Video als auch die Playlist parallel
+            do {
+                async let videoTask = fetchDumpJson(url: trimmed, platform: platform, useCookies: true, forceNoPlaylist: true)
+                async let playlistTask = fetchDumpJson(url: trimmed, platform: platform, useCookies: true, forceNoPlaylist: false)
+                let (videoJson, playlistJson) = try await (videoTask, playlistTask)
+
+                let videoMeta = parseVideoMetadata(videoJson)
+                var playlistMeta: PlaylistMetadata? = nil
+                if let pType = playlistJson["_type"] as? String, pType == "playlist" {
+                    playlistMeta = parsePlaylistMetadata(playlistJson, originalURL: trimmed)
+                }
+                return .video(videoMeta, associatedPlaylist: playlistMeta)
+            } catch {
+                let videoJson = try await fetchDumpJson(url: trimmed, platform: platform, useCookies: false, forceNoPlaylist: true)
+                let videoMeta = parseVideoMetadata(videoJson)
+                return .video(videoMeta, associatedPlaylist: nil)
+            }
+        } else if isPlaylistOnly {
+            // Reine Playlist
+            do {
+                let json = try await fetchDumpJson(url: trimmed, platform: platform, useCookies: true, forceNoPlaylist: false)
+                let playlistMeta = parsePlaylistMetadata(json, originalURL: trimmed)
+                return .playlist(playlistMeta)
+            } catch {
+                let json = try await fetchDumpJson(url: trimmed, platform: platform, useCookies: false, forceNoPlaylist: false)
+                let playlistMeta = parsePlaylistMetadata(json, originalURL: trimmed)
+                return .playlist(playlistMeta)
+            }
+        } else {
+            // Normales Einzelvideo oder Universal
+            do {
+                let json = try await fetchDumpJson(url: trimmed, platform: platform, useCookies: true, forceNoPlaylist: false)
+                if let pType = json["_type"] as? String, pType == "playlist" {
+                    let playlistMeta = parsePlaylistMetadata(json, originalURL: trimmed)
+                    return .playlist(playlistMeta)
+                } else {
+                    let videoMeta = parseVideoMetadata(json)
+                    return .video(videoMeta, associatedPlaylist: nil)
+                }
+            } catch {
+                let json = try await fetchDumpJson(url: trimmed, platform: platform, useCookies: false, forceNoPlaylist: true)
+                if let pType = json["_type"] as? String, pType == "playlist" {
+                    let playlistMeta = parsePlaylistMetadata(json, originalURL: trimmed)
+                    return .playlist(playlistMeta)
+                } else {
+                    let videoMeta = parseVideoMetadata(json)
+                    return .video(videoMeta, associatedPlaylist: nil)
+                }
             }
         }
     }
 
-    private static func runDumpJson(url: String, platform: Platform, useCookies: Bool) async throws -> VideoMetadata {
+    public static func inspectVideoOnly(url: String, platform: Platform) async throws -> VideoMetadata {
+        let result = try await inspect(url: url, platform: platform)
+        switch result {
+        case .video(let video, _):
+            return video
+        case .playlist(let playlist):
+            return VideoMetadata(
+                id: playlist.id,
+                title: playlist.title,
+                thumbnailURL: playlist.thumbnailURL,
+                durationSeconds: 0,
+                uploader: playlist.uploader,
+                viewCount: nil,
+                estimatedFileSize: nil,
+                isLive: false,
+                videoOptions: PlaylistFormatPresets.videoOptions,
+                audioOptions: PlaylistFormatPresets.audioOptions
+            )
+        }
+    }
+
+    private static func fetchDumpJson(url: String, platform: Platform, useCookies: Bool, forceNoPlaylist: Bool) async throws -> [String: Any] {
         let (ytdlpPath, isPythonModule) = ProcessHelper.findYtDlp()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: ytdlpPath)
@@ -32,9 +94,16 @@ public final class InspectorService {
         }
         args.append(contentsOf: [
             "--dump-single-json",
+            "--flat-playlist",
             "--no-warnings",
             "--remote-components", "ejs:github"
         ])
+
+        if forceNoPlaylist {
+            args.append("--no-playlist")
+        } else {
+            args.append("--yes-playlist")
+        }
 
         if useCookies {
             let cookieArgs = SettingsManager.shared.getCookieArgs(for: platform)
@@ -65,7 +134,67 @@ public final class InspectorService {
             throw NSError(domain: "InspectorService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Konnte Metadaten-JSON nicht analysieren"])
         }
 
-        return parseVideoMetadata(json)
+        return json
+    }
+
+    private static func parsePlaylistMetadata(_ json: [String: Any], originalURL: String) -> PlaylistMetadata {
+        let id = json["id"] as? String ?? UUID().uuidString
+        let title = json["title"] as? String ?? "Playlist"
+        let uploader = (json["uploader"] as? String)
+            ?? (json["channel"] as? String)
+            ?? (json["creator"] as? String)
+            ?? "Unbekannter Ersteller"
+
+        var thumbURL: URL? = nil
+        if let thumbStr = json["thumbnail"] as? String {
+            thumbURL = URL(string: thumbStr)
+        } else if let thumbs = json["thumbnails"] as? [[String: Any]], let lastThumb = thumbs.last?["url"] as? String {
+            thumbURL = URL(string: lastThumb)
+        }
+
+        let rawEntries = json["entries"] as? [[String: Any]] ?? []
+        var items: [PlaylistItem] = []
+
+        for (i, entry) in rawEntries.enumerated() {
+            let itemId = entry["id"] as? String ?? "\(i + 1)"
+            let itemTitle = entry["title"] as? String ?? "Element \(i + 1)"
+            let itemDuration = entry["duration"] as? Int ?? 0
+            let itemUploader = (entry["uploader"] as? String) ?? (entry["channel"] as? String) ?? uploader
+
+            var itemThumb: URL? = nil
+            if let t = entry["thumbnail"] as? String {
+                itemThumb = URL(string: t)
+            } else if let thumbs = entry["thumbnails"] as? [[String: Any]], let first = thumbs.first?["url"] as? String {
+                itemThumb = URL(string: first)
+            }
+
+            let itemUrl = entry["url"] as? String
+                ?? entry["webpage_url"] as? String
+                ?? "https://www.youtube.com/watch?v=\(itemId)"
+
+            let item = PlaylistItem(
+                id: itemId,
+                index: i + 1,
+                title: itemTitle,
+                durationSeconds: itemDuration,
+                uploader: itemUploader,
+                thumbnailURL: itemThumb ?? thumbURL,
+                url: itemUrl
+            )
+            items.append(item)
+        }
+
+        let count = json["playlist_count"] as? Int ?? items.count
+
+        return PlaylistMetadata(
+            id: id,
+            title: title,
+            uploader: uploader,
+            thumbnailURL: thumbURL ?? items.first?.thumbnailURL,
+            itemCount: max(count, items.count),
+            items: items,
+            webpageURL: originalURL
+        )
     }
 
     private static func parseVideoMetadata(_ json: [String: Any]) -> VideoMetadata {

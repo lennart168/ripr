@@ -313,3 +313,127 @@ public func formatFriendlyETA(seconds: Int) -> String {
         return "Noch ca. \(s) Sekunden"
     }
 }
+
+// MARK: - Playlist Models
+public struct PlaylistItem: Identifiable, Hashable {
+    public let id: String
+    public let index: Int
+    public let title: String
+    public let durationSeconds: Int
+    public let durationFormatted: String
+    public let uploader: String
+    public let thumbnailURL: URL?
+    public let url: String
+
+    public init(
+        id: String,
+        index: Int,
+        title: String,
+        durationSeconds: Int,
+        uploader: String,
+        thumbnailURL: URL?,
+        url: String
+    ) {
+        self.id = id
+        self.index = index
+        self.title = title
+        self.durationSeconds = durationSeconds
+        self.uploader = uploader
+        self.thumbnailURL = thumbnailURL
+        self.url = url
+
+        if durationSeconds > 0 {
+            let m = durationSeconds / 60
+            let s = durationSeconds % 60
+            let h = m / 60
+            let remM = m % 60
+            if h > 0 {
+                self.durationFormatted = String(format: "%d:%02d:%02d", h, remM, s)
+            } else {
+                self.durationFormatted = String(format: "%d:%02d", remM, s)
+            }
+        } else {
+            self.durationFormatted = ""
+        }
+    }
+}
+
+public struct PlaylistMetadata: Identifiable {
+    public let id: String
+    public let title: String
+    public let uploader: String
+    public let thumbnailURL: URL?
+    public let itemCount: Int
+    public let items: [PlaylistItem]
+    public let webpageURL: String
+
+    public init(
+        id: String,
+        title: String,
+        uploader: String,
+        thumbnailURL: URL?,
+        itemCount: Int,
+        items: [PlaylistItem],
+        webpageURL: String
+    ) {
+        self.id = id
+        self.title = title
+        self.uploader = uploader
+        self.thumbnailURL = thumbnailURL
+        self.itemCount = itemCount
+        self.items = items
+        self.webpageURL = webpageURL
+    }
+
+    public var totalDurationFormatted: String {
+        let totalSecs = items.reduce(0) { $0 + $1.durationSeconds }
+        guard totalSecs > 0 else { return "" }
+        let h = totalSecs / 3600
+        let m = (totalSecs % 3600) / 60
+        if h > 0 {
+            return "\(h) Std. \(m) Min."
+        } else {
+            return "\(m) Min."
+        }
+    }
+}
+
+public enum InspectionResult {
+    case video(VideoMetadata, associatedPlaylist: PlaylistMetadata? = nil)
+    case playlist(PlaylistMetadata)
+
+    public var isPlaylistOnly: Bool {
+        if case .playlist = self { return true }
+        return false
+    }
+
+    public var playlist: PlaylistMetadata? {
+        switch self {
+        case .playlist(let p): return p
+        case .video(_, let p): return p
+        }
+    }
+
+    public var video: VideoMetadata? {
+        switch self {
+        case .video(let v, _): return v
+        case .playlist: return nil
+        }
+    }
+}
+
+public struct PlaylistFormatPresets {
+    public static let videoOptions: [FormatOption] = [
+        FormatOption(display: "Beste Qualität (Bis zu 4K / HD)", selector: "bestvideo+bestaudio/best", height: 2160, isAudioOnly: false, formatExt: "mp4"),
+        FormatOption(display: "1080p Full HD", selector: "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best", height: 1080, isAudioOnly: false, formatExt: "mp4"),
+        FormatOption(display: "720p HD", selector: "bestvideo[height<=720]+bestaudio/best[height<=720]/best", height: 720, isAudioOnly: false, formatExt: "mp4"),
+        FormatOption(display: "480p SD", selector: "bestvideo[height<=480]+bestaudio/best[height<=480]/best", height: 480, isAudioOnly: false, formatExt: "mp4")
+    ]
+
+    public static let audioOptions: [FormatOption] = [
+        FormatOption(display: "MP3 (320 kbps — Höchste Qualität)", selector: "bestaudio/best", isAudioOnly: true, formatExt: "mp3"),
+        FormatOption(display: "M4A / AAC (Apple & Mac)", selector: "bestaudio/best", isAudioOnly: true, formatExt: "m4a"),
+        FormatOption(display: "FLAC (Lossless / Verlustfrei)", selector: "bestaudio/best", isAudioOnly: true, formatExt: "flac"),
+        FormatOption(display: "WAV (Unkomprimiert)", selector: "bestaudio/best", isAudioOnly: true, formatExt: "wav")
+    ]
+}

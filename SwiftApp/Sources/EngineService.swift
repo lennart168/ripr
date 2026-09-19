@@ -7,6 +7,9 @@ public final class EngineService: ObservableObject {
     @Published public var isDownloading: Bool = false
     @Published public var isAnalyzing: Bool = false
     @Published public var isLive: Bool = false
+    @Published public var isPlaylist: Bool = false
+    @Published public var playlistCurrentItem: Int = 0
+    @Published public var playlistTotalItems: Int = 0
     @Published public var percent: Double = 0.0
     @Published public var statusText: String = "Bereit"
     @Published public var etaText: String = ""
@@ -43,6 +46,10 @@ public final class EngineService: ObservableObject {
     public func reset() {
         self.isDownloading = false
         self.isAnalyzing = false
+        self.isLive = false
+        self.isPlaylist = false
+        self.playlistCurrentItem = 0
+        self.playlistTotalItems = 0
         self.percent = 0.0
         self.statusText = "Bereit"
         self.etaText = ""
@@ -383,6 +390,254 @@ public final class EngineService: ObservableObject {
             self.statusText = "Download fehlgeschlagen"
             self.errorMessage = capturedError.isEmpty ? "Download-Prozess beendet mit Fehlercode \(exitCode)" : capturedError
         }
+    }
+
+    public func startPlaylistDownload(
+        playlist: PlaylistMetadata,
+        selectedIndices: [Int],
+        format: FormatOption,
+        outputFolder: URL,
+        platform: Platform,
+        createSubfolder: Bool = true,
+        numberFiles: Bool = true
+    ) {
+        self.isDownloading = true
+        self.isAnalyzing = false
+        self.isLive = false
+        self.isPlaylist = true
+        self.isCancelled = false
+        self.isConverting = false
+        self.percent = 0.0
+        self.errorMessage = nil
+        self.finishedFilePath = nil
+        self.playlistCurrentItem = 1
+        self.playlistTotalItems = selectedIndices.count
+        self.startTime = Date()
+
+        let total = selectedIndices.count
+        self.statusText = "Playlist wird vorbereitet (0 von \(total))..."
+        self.etaText = "Berechne..."
+        self.detailsText = "Initialisiere Download von \(total) Elementen..."
+
+        Task {
+            await self.executePlaylistDownload(
+                playlist: playlist,
+                selectedIndices: selectedIndices,
+                format: format,
+                outputFolder: outputFolder,
+                platform: platform,
+                createSubfolder: createSubfolder,
+                numberFiles: numberFiles,
+                useCookies: true
+            )
+        }
+    }
+
+    private func executePlaylistDownload(
+        playlist: PlaylistMetadata,
+        selectedIndices: [Int],
+        format: FormatOption,
+        outputFolder: URL,
+        platform: Platform,
+        createSubfolder: Bool,
+        numberFiles: Bool,
+        useCookies: Bool
+    ) async {
+        let (ytdlpPath, isPythonModule) = ProcessHelper.findYtDlp()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: ytdlpPath)
+
+        let targetFolder: URL
+        if createSubfolder {
+            let safeTitle = sanitizeFileName(playlist.title)
+            targetFolder = outputFolder.appendingPathComponent(safeTitle, isDirectory: true)
+            try? FileManager.default.createDirectory(at: targetFolder, withIntermediateDirectories: true)
+        } else {
+            targetFolder = outputFolder
+        }
+
+        let outtmpl: String
+        if numberFiles {
+            outtmpl = targetFolder.appendingPathComponent("%(playlist_index)02d - %(title)s [%(id)s].%(ext)s").path
+        } else {
+            outtmpl = targetFolder.appendingPathComponent("%(title)s [%(id)s].%(ext)s").path
+        }
+
+        var args: [String] = []
+        if isPythonModule {
+            args.append(contentsOf: ["-m", "yt_dlp"])
+        }
+        args.append(contentsOf: [
+            "--newline",
+            "--no-part",
+            "--ignore-errors",
+            "--no-abort-on-error",
+            "--remote-components", "ejs:github",
+            "--progress-template", "download:DOWNLOAD_PROGRESS:%(progress._percent_str)s|%(progress._total_bytes_str,progress._total_bytes_estimate_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress._downloaded_bytes_str)s",
+            "-o", outtmpl
+        ])
+
+        if !selectedIndices.isEmpty && selectedIndices.count < playlist.items.count {
+            let itemsArg = selectedIndices.map { String($0) }.joined(separator: ",")
+            args.append(contentsOf: ["--playlist-items", itemsArg])
+        }
+
+        if useCookies {
+            let cookieArgs = SettingsManager.shared.getCookieArgs(for: platform)
+            args.append(contentsOf: cookieArgs)
+        }
+
+        if format.isAudioOnly {
+            args.append(contentsOf: [
+                "-x",
+                "--audio-format", format.formatExt,
+                "--audio-quality", "0"
+            ])
+            if SettingsManager.shared.embedThumbnail { args.append("--embed-thumbnail") }
+            if SettingsManager.shared.embedMetadata { args.append("--embed-metadata") }
+        } else {
+            args.append(contentsOf: ["-f", format.selector, "--merge-output-format", "mp4"])
+            if SettingsManager.shared.embedThumbnail { args.append("--embed-thumbnail") }
+            if SettingsManager.shared.embedMetadata { args.append("--embed-metadata") }
+        }
+
+        args.append(playlist.webpageURL)
+        process.arguments = args
+        process.environment = ProcessHelper.makeEnvironment()
+
+        let pipeOut = Pipe()
+        process.standardOutput = pipeOut
+        process.standardError = pipeOut
+
+        self.currentProcess = process
+
+        do {
+            try process.run()
+        } catch {
+            self.isDownloading = false
+            self.errorMessage = "Fehler beim Starten des Playlist-Downloaders: \(error.localizedDescription)"
+            return
+        }
+
+        var currentItemIdx: Int = 1
+        let totalItemsCount = max(1, selectedIndices.count)
+        var currentItemTitle: String = ""
+        var capturedError = ""
+        let fileHandle = pipeOut.fileHandleForReading
+
+        do {
+            for try await line in fileHandle.bytes.lines {
+                let cleanLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if cleanLine.isEmpty { continue }
+
+                if cleanLine.contains("Downloading item") && cleanLine.contains("of") {
+                    let parts = cleanLine.components(separatedBy: "Downloading item")
+                    if parts.count > 1 {
+                        let sub = parts[1].trimmingCharacters(in: .whitespaces)
+                        let numParts = sub.components(separatedBy: "of")
+                        if numParts.count == 2,
+                           let cur = Int(numParts[0].trimmingCharacters(in: .whitespaces)) {
+                            currentItemIdx = cur
+                            self.playlistCurrentItem = cur
+                        }
+                    }
+                }
+
+                if cleanLine.contains("[download] Destination:") {
+                    let parts = cleanLine.components(separatedBy: "Destination:")
+                    if parts.count > 1 {
+                        let dest = parts[1].trimmingCharacters(in: .whitespaces)
+                        currentItemTitle = URL(fileURLWithPath: dest).deletingPathExtension().lastPathComponent
+                    }
+                }
+
+                if cleanLine.contains("DOWNLOAD_PROGRESS:") {
+                    let payload = cleanLine.components(separatedBy: "DOWNLOAD_PROGRESS:").last ?? ""
+                    let parts = payload.components(separatedBy: "|")
+                    if parts.count >= 5 {
+                        let pctRaw = parts[0].replacingOccurrences(of: "%", with: "").trimmingCharacters(in: .whitespaces)
+                        let itemPct = Double(pctRaw) ?? 0.0
+                        let tot = parts[1].trimmingCharacters(in: .whitespaces)
+                        let spd = parts[2].trimmingCharacters(in: .whitespaces)
+                        let eta = parts[3].trimmingCharacters(in: .whitespaces)
+                        let dl = parts[4].trimmingCharacters(in: .whitespaces)
+
+                        let overallPct = (Double(max(0, currentItemIdx - 1)) + (itemPct / 100.0)) / Double(totalItemsCount) * 100.0
+                        self.percent = min(100.0, max(0.0, overallPct))
+                        self.statusText = "Lade Element \(currentItemIdx) von \(totalItemsCount) (\(String(format: "%.1f", overallPct))%)"
+                        self.etaText = "Restzeit: \(formatFriendlyETA(eta))"
+
+                        var details: [String] = []
+                        if !currentItemTitle.isEmpty { details.append(currentItemTitle) }
+                        if !dl.isEmpty && dl != "NA" && !tot.isEmpty && tot != "NA" { details.append("\(dl) von \(tot)") }
+                        if !spd.isEmpty && spd != "NA" && spd != "Unknown B/s" { details.append(spd) }
+                        self.detailsText = details.joined(separator: "   •   ")
+                    }
+                }
+
+                if cleanLine.contains("ERROR:") || cleanLine.contains("Operation not permitted") {
+                    capturedError = cleanLine
+                }
+            }
+        } catch {
+            print("Playlist-Stream Fehler: \(error)")
+        }
+
+        process.waitUntilExit()
+        let exitCode = process.terminationStatus
+
+        self.isDownloading = false
+
+        if self.isCancelled {
+            self.statusText = "Playlist-Download abgebrochen"
+            self.errorMessage = "Download wurde vom Benutzer abgebrochen."
+            return
+        }
+
+        if exitCode == 0 {
+            self.percent = 100.0
+            self.statusText = "Playlist-Download erfolgreich abgeschlossen (100%)"
+            self.etaText = "Fertiggestellt"
+            self.detailsText = "Gespeichert in: \(targetFolder.path)"
+            self.finishedFilePath = targetFolder.path
+
+            HistoryManager.shared.add(item: DownloadHistoryItem(
+                title: playlist.title,
+                uploader: playlist.uploader,
+                thumbnailURL: playlist.thumbnailURL?.absoluteString,
+                filePath: targetFolder.path,
+                formatDisplay: "\(format.display) • \(totalItemsCount) Dateien",
+                platform: platform.rawValue
+            ))
+
+            NotificationService.shared.notifyDownloadFinished(title: "Playlist: \(playlist.title)", filePath: targetFolder.path)
+        } else {
+            if useCookies && (capturedError.contains("Operation not permitted") || capturedError.lowercased().contains("cookies")) {
+                print("Playlist-Download mit Cookies fehlgeschlagen, wiederhole ohne...")
+                Task {
+                    await self.executePlaylistDownload(
+                        playlist: playlist,
+                        selectedIndices: selectedIndices,
+                        format: format,
+                        outputFolder: outputFolder,
+                        platform: platform,
+                        createSubfolder: createSubfolder,
+                        numberFiles: numberFiles,
+                        useCookies: false
+                    )
+                }
+                return
+            }
+            self.statusText = "Playlist-Download mit Fehlern beendet"
+            self.errorMessage = capturedError.isEmpty ? "Prozess beendet mit Code \(exitCode)" : capturedError
+        }
+    }
+
+    private func sanitizeFileName(_ name: String) -> String {
+        let invalid = CharacterSet(charactersIn: "/\\?%*|\":<>")
+        let clean = name.components(separatedBy: invalid).joined(separator: "-")
+        let trimmed = clean.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Playlist" : trimmed
     }
 
     public func convertCurrentFileToH265() {
