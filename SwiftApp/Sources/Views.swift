@@ -950,7 +950,7 @@ public struct AutoDownloaderView: View {
     @State private var convertToH265: Bool = SettingsManager.shared.convertToH265
 
     public var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 24) {
                 Spacer(minLength: 16)
                 heroSection
@@ -966,6 +966,7 @@ public struct AutoDownloaderView: View {
             .padding(.horizontal, 24)
             .padding(.top, 10)
         }
+        .scrollIndicators(.hidden)
         .onAppear {
             self.selectedFolder = settings.downloadFolder
             self.convertToH265 = settings.convertToH265
@@ -1267,7 +1268,7 @@ public struct HistoryView: View {
     @ObservedObject private var history = HistoryManager.shared
 
     public var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 24) {
                 Spacer(minLength: 20)
 
@@ -1321,6 +1322,7 @@ public struct HistoryView: View {
             .padding(.horizontal, 24)
             .padding(.top, 10)
         }
+        .scrollIndicators(.hidden)
     }
 }
 
@@ -1438,7 +1440,7 @@ public struct SettingsView: View {
     @ObservedObject private var notifications = NotificationService.shared
 
     public var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 24) {
                 Spacer(minLength: 20)
 
@@ -1847,6 +1849,7 @@ public struct SettingsView: View {
             .padding(.horizontal, 24)
             .padding(.top, 10)
         }
+        .scrollIndicators(.hidden)
     }
 
     private func chooseFolder() {
@@ -2241,6 +2244,7 @@ public struct ContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .scrollIndicators(.hidden)
             }
 
             // In-App Toast Overlay unten
