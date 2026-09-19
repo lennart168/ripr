@@ -1434,6 +1434,7 @@ public struct HistoryItemCard: View {
 public struct SettingsView: View {
     @ObservedObject private var settings = SettingsManager.shared
     @ObservedObject private var updater = UpdaterService.shared
+    @ObservedObject private var appUpdater = AppUpdaterService.shared
 
     public var body: some View {
         ScrollView {
@@ -1445,7 +1446,7 @@ public struct SettingsView: View {
                     icon: "gearshape.fill",
                     color: .accentColor,
                     title: "Einstellungen",
-                    subtitle: "Verwalte Standard-Speicherort, Updates für die yt-dlp Engine und Login-Cookies."
+                    subtitle: "Verwalte Standard-Speicherort, App- & Engine-Updates sowie Login-Cookies."
                 )
 
                 VStack(alignment: .leading, spacing: 18) {
@@ -1468,6 +1469,141 @@ public struct SettingsView: View {
                                 Label("Ändern...", systemImage: "pencil")
                             }
                             .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                        }
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+
+                    // ripr App-Updates Card (GitHub Releases)
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Label("ripr App-Aktualisierung (GitHub)", systemImage: "arrow.down.app.fill")
+                                .font(.system(size: 14, weight: .bold))
+
+                            Spacer()
+
+                            if let latest = appUpdater.latestVersion, latest != appUpdater.currentVersion {
+                                Text("v\(latest) verfügbar")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(Capsule().fill(Color.orange))
+                            }
+                        }
+
+                        HStack {
+                            Text("Installierte Version: **v\(appUpdater.currentVersion)**")
+                                .font(.system(size: 13))
+
+                            Spacer()
+
+                            Button(action: { appUpdater.checkForUpdates() }) {
+                                if case .checking = appUpdater.state {
+                                    ProgressView().scaleEffect(0.6)
+                                } else {
+                                    Label("Nach Updates suchen", systemImage: "arrow.clockwise")
+                                }
+                            }
+                            .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8))
+                            .disabled(appUpdater.state == .checking || appUpdater.state.isDownloadingOrExtracting)
+
+                            switch appUpdater.state {
+                            case .available(let version, _, _):
+                                Button(action: { appUpdater.startDownload() }) {
+                                    Label("Auf v\(version) aktualisieren", systemImage: "arrow.up.circle.fill")
+                                }
+                                .buttonStyle(ProminentGlassButtonStyle(cornerRadius: 8))
+
+                            case .readyToInstall(let version):
+                                Button(action: { appUpdater.installAndRelaunch() }) {
+                                    Label("Neu starten & v\(version) installieren", systemImage: "bolt.fill")
+                                }
+                                .buttonStyle(ProminentGlassButtonStyle(gradient: LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing), cornerRadius: 8))
+
+                            default:
+                                EmptyView()
+                            }
+                        }
+
+                        if case .downloading(let progress, _, _) = appUpdater.state {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ProgressView(value: progress)
+                                    .progressViewStyle(.linear)
+
+                                HStack {
+                                    Text(appUpdater.statusMessage)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Button("Abbrechen") {
+                                        appUpdater.cancelDownload()
+                                    }
+                                    .font(.system(size: 11))
+                                    .buttonStyle(.plain)
+                                    .foregroundColor(.red)
+                                }
+                            }
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.04)))
+                        } else if case .extracting = appUpdater.state {
+                            HStack(spacing: 8) {
+                                ProgressView().scaleEffect(0.6)
+                                Text(appUpdater.statusMessage)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                        } else if !appUpdater.statusMessage.isEmpty {
+                            Text(appUpdater.statusMessage)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(
+                                    {
+                                        switch appUpdater.state {
+                                        case .error: return .red
+                                        case .readyToInstall: return .green
+                                        case .available: return .orange
+                                        default: return .primary.opacity(0.8)
+                                        }
+                                    }()
+                                )
+                        }
+
+                        Divider().opacity(0.15)
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Automatische Update-Prüfung")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Text("Prüft beim Start automatisch, ob ein neueres Release auf GitHub vorliegt.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Toggle("", isOn: $settings.autoCheckAppUpdates)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                        }
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Updates automatisch im Hintergrund laden")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Text("Lädt das Release-Paket automatisch vor, sodass du mit einem Klick neu starten kannst.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Toggle("", isOn: $settings.autoDownloadAppUpdates)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
                         }
                     }
                     .padding(18)
@@ -1672,6 +1808,7 @@ public struct SettingsView: View {
 // MARK: - Floating Liquid Glass Tab Bar (SF Symbols)
 public struct GlassTabBar: View {
     @Binding var selectedTab: String
+    @ObservedObject private var appUpdater = AppUpdaterService.shared
 
     let tabs: [(id: String, name: String, icon: String)] = [
         ("Download", "Download", "sparkles"),
@@ -1693,6 +1830,12 @@ public struct GlassTabBar: View {
 
                         Text(tab.name)
                             .font(.system(size: 13, weight: selectedTab == tab.id ? .bold : .medium))
+
+                        if tab.id == "Settings" && (appUpdater.latestVersion != nil && appUpdater.latestVersion != appUpdater.currentVersion) {
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 6, height: 6)
+                        }
                     }
                     .foregroundColor(selectedTab == tab.id ? .white : .primary.opacity(0.75))
                     .padding(.horizontal, 18)
@@ -1738,6 +1881,160 @@ public struct GlassTabBar: View {
     }
 }
 
+// MARK: - App Update Banner View
+public struct AppUpdateBannerView: View {
+    @ObservedObject private var appUpdater = AppUpdaterService.shared
+
+    public var body: some View {
+        if appUpdater.showBanner {
+            Group {
+                switch appUpdater.state {
+                case .available(let version, _, _):
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.cyan)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Neues ripr Update verfügbar (v\(version))")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.primary)
+                            Text("Ein neues Release steht auf GitHub bereit.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Button(action: { appUpdater.startDownload() }) {
+                            Label("Laden & Installieren", systemImage: "arrow.down.circle.fill")
+                        }
+                        .buttonStyle(ProminentGlassButtonStyle(cornerRadius: 8, horizontalPadding: 10, verticalPadding: 5))
+
+                        Button(action: {
+                            withAnimation { appUpdater.showBanner = false }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .padding(5)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(LinearGradient(colors: [Color.cyan.opacity(0.6), Color.blue.opacity(0.3)], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+
+                case .downloading(let progress, _, _):
+                    HStack(spacing: 12) {
+                        ProgressView().scaleEffect(0.65)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(appUpdater.statusMessage)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.primary)
+
+                            ProgressView(value: progress)
+                                .progressViewStyle(.linear)
+                                .frame(maxWidth: 320)
+                        }
+
+                        Spacer()
+
+                        Button("Abbrechen") {
+                            appUpdater.cancelDownload()
+                        }
+                        .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8, horizontalPadding: 10, verticalPadding: 5))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.accentColor.opacity(0.5), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+
+                case .extracting:
+                    HStack(spacing: 12) {
+                        ProgressView().scaleEffect(0.65)
+                        Text(appUpdater.statusMessage)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
+
+                case .readyToInstall(let version):
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.green)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("ripr v\(version) ist heruntergeladen!")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.primary)
+                            Text("Starte die App neu, um das Update zu installieren.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Button(action: { appUpdater.installAndRelaunch() }) {
+                            Label("Jetzt neu starten", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(ProminentGlassButtonStyle(
+                            gradient: LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            cornerRadius: 8,
+                            horizontalPadding: 12,
+                            verticalPadding: 6
+                        ))
+
+                        Button(action: {
+                            withAnimation { appUpdater.showBanner = false }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .padding(5)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(LinearGradient(colors: [Color.green.opacity(0.8), Color.teal.opacity(0.4)], startPoint: .leading, endPoint: .trailing), lineWidth: 1.2)
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+
+                default:
+                    EmptyView()
+                }
+            }
+            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: appUpdater.state)
+        }
+    }
+}
+
 // MARK: - Main Content View (Liquid Glass Shell)
 public struct ContentView: View {
     @ObservedObject private var router = TabRouter.shared
@@ -1758,7 +2055,9 @@ public struct ContentView: View {
                     GlassTabBar(selectedTab: $router.selectedTab)
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 8)
+
+                AppUpdateBannerView()
 
                 // Tab Content
                 Group {

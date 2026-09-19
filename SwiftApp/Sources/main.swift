@@ -43,6 +43,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Geräuschloser Hintergrund-Update-Check für ripr App (GitHub Releases)
+        Task.detached(priority: .background) {
+            await AppUpdaterService.shared.checkSilentlyInBackground()
+        }
+
         // Geräuschloser Hintergrund-Update-Check für yt-dlp
         Task.detached(priority: .background) {
             await UpdaterService.shared.checkAndUpdateSilentlyInBackground()

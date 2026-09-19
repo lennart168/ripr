@@ -50,6 +50,14 @@ public final class SettingsManager: ObservableObject {
         didSet { defaults.set(autoUpdateYtDlp, forKey: "autoUpdateYtDlp") }
     }
 
+    @Published public var autoCheckAppUpdates: Bool {
+        didSet { defaults.set(autoCheckAppUpdates, forKey: "autoCheckAppUpdates") }
+    }
+
+    @Published public var autoDownloadAppUpdates: Bool {
+        didSet { defaults.set(autoDownloadAppUpdates, forKey: "autoDownloadAppUpdates") }
+    }
+
     private init() {
         let defaultDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
@@ -92,6 +100,18 @@ public final class SettingsManager: ObservableObject {
             self.autoUpdateYtDlp = defaults.bool(forKey: "autoUpdateYtDlp")
         } else {
             self.autoUpdateYtDlp = true // Standardmäßig aktiviert
+        }
+
+        if defaults.object(forKey: "autoCheckAppUpdates") != nil {
+            self.autoCheckAppUpdates = defaults.bool(forKey: "autoCheckAppUpdates")
+        } else {
+            self.autoCheckAppUpdates = true
+        }
+
+        if defaults.object(forKey: "autoDownloadAppUpdates") != nil {
+            self.autoDownloadAppUpdates = defaults.bool(forKey: "autoDownloadAppUpdates")
+        } else {
+            self.autoDownloadAppUpdates = true
         }
     }
 
