@@ -75,31 +75,52 @@ echo "🔍 Prüfe existierendes GitHub Release für ${TAG}..."
 RELEASE_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "https://api.github.com/repos/${REPO}/releases/tags/${TAG}")
 RELEASE_ID=$(echo "$RELEASE_DATA" | grep '"id":' | head -n 1 | awk '{print $2}' | tr -d ',')
 
-if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
+if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ] && [ "$RELEASE_ID" != "" ]; then
     echo "ℹ️ Release für ${TAG} existiert bereits (ID: ${RELEASE_ID}). Lösche vorheriges DMG Asset..."
-    ASSET_ID=$(echo "$RELEASE_DATA" | grep -B 2 '"name": "ripr.dmg"' | grep '"id":' | head -n 1 | awk '{print $2}' | tr -d ',')
+    ASSET_ID=$(python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.argv[1])
+    for a in data.get("assets", []):
+        if a.get("name") == "ripr.dmg":
+            print(a.get("id", ""))
+            break
+except Exception:
+    pass
+' "$RELEASE_DATA")
     if [ -n "$ASSET_ID" ]; then
         curl -s -X DELETE -H "Authorization: Bearer $TOKEN" "https://api.github.com/repos/${REPO}/releases/assets/${ASSET_ID}"
     fi
 else
     echo "✨ Erstelle neues GitHub Release für ${TAG}..."
-    JSON_PAYLOAD=$(cat <<EOF
-{
-  "tag_name": "${TAG}",
-  "name": "${TITLE}",
-  "body": "${NOTES}",
-  "draft": false,
-  "prerelease": false
-}
-EOF
-)
+    JSON_PAYLOAD=$(python3 -c '
+import json, sys
+tag = sys.argv[1]
+title = sys.argv[2]
+notes = sys.argv[3]
+print(json.dumps({
+    "tag_name": tag,
+    "name": title,
+    "body": notes,
+    "draft": False,
+    "prerelease": False
+}))
+' "$TAG" "$TITLE" "$NOTES")
+
     RELEASE_RESPONSE=$(curl -s -X POST \
         -H "Authorization: Bearer $TOKEN" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/${REPO}/releases" \
         -d "$JSON_PAYLOAD")
 
-    RELEASE_ID=$(echo "$RELEASE_RESPONSE" | grep '"id":' | head -n 1 | awk '{print $2}' | tr -d ',')
+    RELEASE_ID=$(python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.argv[1])
+    print(data.get("id") or "")
+except Exception:
+    pass
+' "$RELEASE_RESPONSE")
 fi
 
 if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
@@ -118,7 +139,14 @@ UPLOAD_RESPONSE=$(curl -s -X POST \
     --data-binary @"ripr.dmg" \
     "$UPLOAD_URL")
 
-DOWNLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep '"browser_download_url":' | head -n 1 | cut -d'"' -f4)
+DOWNLOAD_URL=$(python3 -c '
+import json, sys
+try:
+    data = json.loads(sys.argv[1])
+    print(data.get("browser_download_url") or "")
+except Exception:
+    pass
+' "$UPLOAD_RESPONSE")
 
 echo "========================================="
 echo "🎉 ERFOLG! Release ${TAG} ist ab sofort live!"
