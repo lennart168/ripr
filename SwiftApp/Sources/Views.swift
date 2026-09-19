@@ -1101,7 +1101,7 @@ public struct MasterPlaylistCard: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        .background(Capsule().fill(platform.gradient))
 
                     if !playlist.totalDurationFormatted.isEmpty {
                         Text(playlist.totalDurationFormatted)
@@ -1148,12 +1148,12 @@ public struct MasterPlaylistCard: View {
                 Spacer()
                 Text(String(format: "%.1f%%", engine.percent))
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(platform.brandColor)
             }
 
             ProgressView(value: engine.percent, total: 100.0)
                 .progressViewStyle(LinearProgressViewStyle())
-                .accentColor(.purple)
+                .accentColor(platform.brandColor)
 
             HStack {
                 if !engine.detailsText.isEmpty {
@@ -1246,7 +1246,7 @@ public struct MasterPlaylistCard: View {
                         .foregroundColor(!isAudioMode ? .white : .secondary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(!isAudioMode ? RoundedRectangle(cornerRadius: 7).fill(Color.accentColor) : nil)
+                        .background(!isAudioMode ? RoundedRectangle(cornerRadius: 7).fill(platform.brandColor) : nil)
                     }
                     .buttonStyle(.plain)
 
@@ -1262,7 +1262,7 @@ public struct MasterPlaylistCard: View {
                         .foregroundColor(isAudioMode ? .white : .secondary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(isAudioMode ? RoundedRectangle(cornerRadius: 7).fill(Color.purple) : nil)
+                        .background(isAudioMode ? RoundedRectangle(cornerRadius: 7).fill(platform.brandColor) : nil)
                     }
                     .buttonStyle(.plain)
                 }
@@ -1373,8 +1373,8 @@ public struct MasterPlaylistCard: View {
                                 }
                             }) {
                                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(isSelected ? .purple : .secondary.opacity(0.5))
+                                .font(.system(size: 14))
+                                .foregroundColor(isSelected ? platform.brandColor : .secondary.opacity(0.5))
                             }
                             .buttonStyle(.plain)
 
@@ -1413,7 +1413,7 @@ public struct MasterPlaylistCard: View {
                         .padding(.vertical, 4)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(isSelected ? Color.purple.opacity(0.08) : Color.clear)
+                                .fill(isSelected ? platform.brandColor.opacity(0.12) : Color.clear)
                         )
                     }
                 }
@@ -1452,8 +1452,8 @@ public struct MasterPlaylistCard: View {
             }
             .buttonStyle(
                 ProminentGlassButtonStyle(
-                    gradient: LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    shadowColor: .purple,
+                    gradient: platform.gradient,
+                    shadowColor: platform.brandColor,
                     cornerRadius: 14
                 )
             )
@@ -1697,6 +1697,7 @@ public struct AutoDownloaderView: View {
 
     @ViewBuilder
     private var comboLinkSwitcher: some View {
+        let activeColor = detectedPlatform != .auto ? detectedPlatform.brandColor : Color.accentColor
         HStack(spacing: 12) {
             Button(action: {
                 showPlaylistMode = false
@@ -1712,7 +1713,7 @@ public struct AutoDownloaderView: View {
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(!showPlaylistMode ? Color.accentColor : Color.primary.opacity(0.06))
+                        .fill(!showPlaylistMode ? activeColor : Color.primary.opacity(0.06))
                 )
             }
             .buttonStyle(.plain)
@@ -1731,7 +1732,7 @@ public struct AutoDownloaderView: View {
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(showPlaylistMode ? Color.purple : Color.primary.opacity(0.06))
+                        .fill(showPlaylistMode ? activeColor : Color.primary.opacity(0.06))
                 )
             }
             .buttonStyle(.plain)
@@ -1999,12 +2000,12 @@ public struct HistoryItemCard: View {
                             img.resizable().aspectRatio(contentMode: .fill)
                                 .frame(width: 84, height: 52).clipped().cornerRadius(8)
                         } else {
-                            Image(systemName: "play.rectangle.fill")
+                            Image(systemName: item.isDirectory ? "play.square.stack.fill" : "play.rectangle.fill")
                                 .foregroundColor(.secondary)
                         }
                     }
                 } else {
-                    Image(systemName: "film.fill")
+                    Image(systemName: item.isDirectory ? "play.square.stack.fill" : "film.fill")
                         .foregroundColor(.secondary)
                 }
             }
@@ -2019,12 +2020,13 @@ public struct HistoryItemCard: View {
 
                 HStack(spacing: 6) {
                     if !item.platform.isEmpty {
+                        let platColor = Platform.allCases.first(where: { $0.rawValue.lowercased() == item.platform.lowercased() })?.brandColor ?? Color.accentColor
                         Text(item.platform)
                             .font(.system(size: 10, weight: .bold))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.2)))
-                            .foregroundColor(.accentColor)
+                            .background(Capsule().fill(platColor.opacity(0.2)))
+                            .foregroundColor(platColor)
                     }
 
                     if !item.uploader.isEmpty {
@@ -2052,7 +2054,12 @@ public struct HistoryItemCard: View {
             // Actions
             HStack(spacing: 8) {
                 Button(action: {
-                    NSWorkspace.shared.selectFile(item.filePath, inFileViewerRootedAtPath: "")
+                    var isDir: ObjCBool = false
+                    if FileManager.default.fileExists(atPath: item.filePath, isDirectory: &isDir), isDir.boolValue {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: item.filePath))
+                    } else {
+                        NSWorkspace.shared.selectFile(item.filePath, inFileViewerRootedAtPath: "")
+                    }
                 }) {
                     Image(systemName: "folder.fill")
                         .font(.system(size: 12))
@@ -2064,11 +2071,11 @@ public struct HistoryItemCard: View {
                     Button(action: {
                         NSWorkspace.shared.open(URL(fileURLWithPath: item.filePath))
                     }) {
-                        Image(systemName: "play.fill")
+                        Image(systemName: item.isDirectory ? "arrow.up.forward.app.fill" : "play.fill")
                             .font(.system(size: 12))
                     }
                     .buttonStyle(ProminentGlassButtonStyle(cornerRadius: 8))
-                    .help("Datei abspielen")
+                    .help(item.isDirectory ? "Ordner öffnen" : "Datei abspielen")
                 }
 
                 Button(action: onDelete) {

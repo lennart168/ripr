@@ -88,8 +88,13 @@ public final class NotificationService: NSObject, ObservableObject, UNUserNotifi
 
     public func showInFinder(atPath path: String) {
         let fileURL = URL(fileURLWithPath: path)
-        if FileManager.default.fileExists(atPath: path) {
-            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path, isDirectory: &isDir) {
+            if isDir.boolValue {
+                NSWorkspace.shared.open(fileURL)
+            } else {
+                NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+            }
         } else {
             NSWorkspace.shared.open(fileURL.deletingLastPathComponent())
         }
@@ -209,15 +214,9 @@ public final class NotificationService: NSObject, ObservableObject, UNUserNotifi
                         NSWorkspace.shared.open(fileURL)
                     }
                 case Self.actionShowInFinder, UNNotificationDefaultActionIdentifier:
-                    if FileManager.default.fileExists(atPath: filePath) {
-                        NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-                    } else {
-                        NSWorkspace.shared.open(fileURL.deletingLastPathComponent())
-                    }
+                    self.showInFinder(atPath: filePath)
                 default:
-                    if FileManager.default.fileExists(atPath: filePath) {
-                        NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-                    }
+                    self.showInFinder(atPath: filePath)
                 }
             }
         }

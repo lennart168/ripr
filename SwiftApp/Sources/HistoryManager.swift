@@ -36,6 +36,11 @@ public struct DownloadHistoryItem: Identifiable, Codable {
         FileManager.default.fileExists(atPath: filePath)
     }
 
+    public var isDirectory: Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: filePath, isDirectory: &isDir) && isDir.boolValue
+    }
+
     public var fileName: String {
         URL(fileURLWithPath: filePath).lastPathComponent
     }

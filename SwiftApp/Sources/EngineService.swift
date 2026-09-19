@@ -332,7 +332,10 @@ public final class EngineService: ObservableObject {
             return
         }
 
-        if exitCode == 0 {
+        let fileExists = (!candidateFile.isEmpty && FileManager.default.fileExists(atPath: candidateFile))
+            || (self.finishedFilePath != nil && FileManager.default.fileExists(atPath: self.finishedFilePath!))
+
+        if exitCode == 0 || fileExists {
             var finalPath = self.finishedFilePath ?? candidateFile
             var displayFormat = format.display
 
@@ -523,6 +526,7 @@ public final class EngineService: ObservableObject {
         let totalItemsCount = max(1, selectedIndices.count)
         var currentItemTitle: String = ""
         var capturedError = ""
+        var downloadedFiles = Set<String>()
         let fileHandle = pipeOut.fileHandleForReading
 
         do {
@@ -548,6 +552,26 @@ public final class EngineService: ObservableObject {
                     if parts.count > 1 {
                         let dest = parts[1].trimmingCharacters(in: .whitespaces)
                         currentItemTitle = URL(fileURLWithPath: dest).deletingPathExtension().lastPathComponent
+                        downloadedFiles.insert(dest)
+                    }
+                } else if cleanLine.contains("[Merger] Merging formats into") {
+                    let parts = cleanLine.components(separatedBy: "into")
+                    if parts.count > 1 {
+                        let dest = parts[1].trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "\"", with: "")
+                        downloadedFiles.insert(dest)
+                    }
+                } else if cleanLine.contains("[ExtractAudio] Destination:") {
+                    let parts = cleanLine.components(separatedBy: "Destination:")
+                    if parts.count > 1 {
+                        let dest = parts[1].trimmingCharacters(in: .whitespaces)
+                        downloadedFiles.insert(dest)
+                    }
+                } else if cleanLine.contains("has already been downloaded") {
+                    if let match = cleanLine.components(separatedBy: "[download]").last?.components(separatedBy: "has already been downloaded").first {
+                        let dest = match.trimmingCharacters(in: .whitespaces)
+                        if !dest.isEmpty {
+                            downloadedFiles.insert(dest)
+                        }
                     }
                 }
 
@@ -594,19 +618,35 @@ public final class EngineService: ObservableObject {
             return
         }
 
-        if exitCode == 0 {
+        let existingFilesInFolder: [String]
+        if createSubfolder {
+            existingFilesInFolder = (try? FileManager.default.contentsOfDirectory(atPath: targetFolder.path))?
+                .filter { !$0.hasPrefix(".") && !$0.hasSuffix(".part") && !$0.hasSuffix(".ytdl") } ?? []
+        } else {
+            existingFilesInFolder = downloadedFiles.filter { FileManager.default.fileExists(atPath: $0) }
+        }
+
+        let completedCount = createSubfolder ? existingFilesInFolder.count : max(existingFilesInFolder.count, downloadedFiles.count)
+        let isSuccess = exitCode == 0 || completedCount > 0
+
+        if isSuccess {
             self.percent = 100.0
-            self.statusText = "Playlist-Download erfolgreich abgeschlossen (100%)"
+            if completedCount >= totalItemsCount || exitCode == 0 {
+                self.statusText = "Playlist-Download erfolgreich abgeschlossen (100%)"
+            } else {
+                self.statusText = "Playlist-Download abgeschlossen (\(completedCount) von \(totalItemsCount) Elementen geladen)"
+            }
             self.etaText = "Fertiggestellt"
             self.detailsText = "Gespeichert in: \(targetFolder.path)"
             self.finishedFilePath = targetFolder.path
 
+            let finalCount = completedCount > 0 ? completedCount : totalItemsCount
             HistoryManager.shared.add(item: DownloadHistoryItem(
                 title: playlist.title,
                 uploader: playlist.uploader,
                 thumbnailURL: playlist.thumbnailURL?.absoluteString,
                 filePath: targetFolder.path,
-                formatDisplay: "\(format.display) • \(totalItemsCount) Dateien",
+                formatDisplay: "\(format.display) • \(finalCount) Dateien",
                 platform: platform.rawValue
             ))
 
@@ -628,7 +668,7 @@ public final class EngineService: ObservableObject {
                 }
                 return
             }
-            self.statusText = "Playlist-Download mit Fehlern beendet"
+            self.statusText = "Playlist-Download fehlgeschlagen"
             self.errorMessage = capturedError.isEmpty ? "Prozess beendet mit Code \(exitCode)" : capturedError
         }
     }
