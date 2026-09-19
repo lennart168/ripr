@@ -4,6 +4,18 @@ Hier werden alle Änderungen, neuen Funktionen und Fehlerbehebungen nach jedem R
 
 ---
 
+## 🚀 [Unreleased] (Vorbereitung für v1.0.3)
+
+### 🔔 macOS System-Benachrichtigungen & Finder-Integration
+- **Download-Fertigstellungsmeldung**: Sendet automatisch eine native macOS-Mitteilung (Banner & Ton), sobald ein Download oder eine Live-Aufnahme abgeschlossen ist.
+- **Interaktive Buttons**:
+  - Button **„Im Finder anzeigen“** (und Direktklick auf das Banner) markiert die heruntergeladene Datei sofort im Finder.
+  - Zusätzlicher Button **„Öffnen“** zum direkten Abspielen der Datei.
+- **Vordergrund-Support**: Mitteilung wird dank speziellem Delegate auch dann zuverlässig angezeigt, wenn ripr im Vordergrund geöffnet ist.
+- **Einstellungs-Steuerung**: Neuer Schalter im Tab **Einstellungen** zur Aktivierung/Deaktivierung der Download-Mitteilungen.
+
+---
+
 ## 📦 [v1.0.2] — 2026-09-19
 
 ### 🔄 Automatisches App-Update-System (GitHub Releases)

@@ -23,6 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.setActivationPolicy(.regular)
         NSApplication.shared.activate(ignoringOtherApps: true)
 
+        // Benachrichtigungssystem & Aktionen initialisieren
+        NotificationService.shared.setup()
+
         DispatchQueue.main.async {
             if let window = NSApplication.shared.windows.first {
                 window.title = "ripr"

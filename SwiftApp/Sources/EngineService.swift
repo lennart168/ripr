@@ -305,14 +305,16 @@ public final class EngineService: ObservableObject {
             self.detailsText = "Gespeichert in: \(finalPath)"
 
             if !finalPath.isEmpty {
+                let itemTitle = title.isEmpty ? URL(fileURLWithPath: finalPath).lastPathComponent : title
                 HistoryManager.shared.add(item: DownloadHistoryItem(
-                    title: title.isEmpty ? URL(fileURLWithPath: finalPath).lastPathComponent : title,
+                    title: itemTitle,
                     uploader: uploader,
                     thumbnailURL: thumbnailURL,
                     filePath: finalPath,
                     formatDisplay: format.display,
                     platform: platform.rawValue
                 ))
+                NotificationService.shared.notifyDownloadFinished(title: itemTitle, filePath: finalPath)
             }
             return
         }
@@ -348,14 +350,16 @@ public final class EngineService: ObservableObject {
             self.detailsText = "Gespeichert als: \(name)"
 
             if !finalPath.isEmpty {
+                let itemTitle = title.isEmpty ? name : title
                 HistoryManager.shared.add(item: DownloadHistoryItem(
-                    title: title.isEmpty ? name : title,
+                    title: itemTitle,
                     uploader: uploader,
                     thumbnailURL: thumbnailURL,
                     filePath: finalPath,
                     formatDisplay: displayFormat,
                     platform: platform.rawValue
                 ))
+                NotificationService.shared.notifyDownloadFinished(title: itemTitle, filePath: finalPath)
             }
         } else {
             if useCookies && (capturedError.contains("Operation not permitted") || capturedError.lowercased().contains("cookies")) {

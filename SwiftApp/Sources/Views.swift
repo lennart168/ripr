@@ -1739,6 +1739,33 @@ public struct SettingsView: View {
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
                     .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
 
+                    // macOS Benachrichtigungen
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("macOS Benachrichtigungen", systemImage: "bell.badge.fill")
+                            .font(.system(size: 14, weight: .bold))
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Mitteilung bei fertigem Download")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                Text("Sendet einen Banner mit Ton und Direktbutton „Im Finder anzeigen“.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            Toggle("", isOn: $settings.sendDownloadNotification)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                        }
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: 16).fill(.regularMaterial))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(LinearGradient(colors: [Color.white.opacity(0.2), Color.white.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
+
                     // Über ripr & Versionsinfo
                     HStack(spacing: 14) {
                         BrandIconView(

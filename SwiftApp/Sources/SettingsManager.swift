@@ -58,6 +58,10 @@ public final class SettingsManager: ObservableObject {
         didSet { defaults.set(autoDownloadAppUpdates, forKey: "autoDownloadAppUpdates") }
     }
 
+    @Published public var sendDownloadNotification: Bool {
+        didSet { defaults.set(sendDownloadNotification, forKey: "sendDownloadNotification") }
+    }
+
     private init() {
         let defaultDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Downloads")
@@ -112,6 +116,12 @@ public final class SettingsManager: ObservableObject {
             self.autoDownloadAppUpdates = defaults.bool(forKey: "autoDownloadAppUpdates")
         } else {
             self.autoDownloadAppUpdates = true
+        }
+
+        if defaults.object(forKey: "sendDownloadNotification") != nil {
+            self.sendDownloadNotification = defaults.bool(forKey: "sendDownloadNotification")
+        } else {
+            self.sendDownloadNotification = true
         }
     }
 
