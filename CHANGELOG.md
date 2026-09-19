@@ -4,7 +4,7 @@ Hier werden alle Änderungen, neuen Funktionen und Fehlerbehebungen nach jedem R
 
 ---
 
-## 📦 [v1.0.1] — 2026-09-19
+## 📦 [v1.0.2] — 2026-09-19
 
 ### 🔄 Automatisches App-Update-System (GitHub Releases)
 - **Natives Auto-Update**: ripr erkennt nun automatisch neue GitHub-Releases (`lennart168/ripr`), lädt das Release-Paket (`ripr.dmg`) mit Live-Fortschrittsbalken im Hintergrund herunter, entpackt es geräuschlos und ersetzt die alte App nahtlos.
@@ -16,17 +16,23 @@ Hier werden alle Änderungen, neuen Funktionen und Fehlerbehebungen nach jedem R
 - **Startseite aufgeräumt**: Versionsplakette von der Startseite entfernt für einen noch minimalistischeren, cleanen Look.
 - **Zentraler Versionsort**: Versionsanzeige übersichtlich und exklusiv in den Einstellungen gebündelt.
 - **Indikator im Einstellungs-Tab**: Subtiler Hinweis-Punkt bei verfügbaren Aktualisierungen.
-- **Format- & Qualitäts-Dropdowns**: Verbreiterte Menüs auf voller Zeilenbreite für optimale Lesbarkeit.
-- **Plattform-adaptiver Analysieren-Button**: Dynamische Übernahme der Markenfarben (YouTube Rot, TikTok Cyan, Kick Neon, etc.) mit optimiertem Textkontrast.
+
+---
+
+## 📦 [v1.0.1] — 2026-09-19
 
 ### 📦 Standalone Binaries & Engine
-- **100% Standalone (Apple Silicon)**: Integrierte Binaries für `yt-dlp`, `ffmpeg` und `ffprobe` – weder Homebrew noch Python erforderlich.
+- **100% Standalone (Apple Silicon)**: Eigenständige, native Apple Silicon (ARM64) Binaries für `yt-dlp`, `ffmpeg` und `ffprobe` fest ins App-Bundle integriert. Nutzer benötigen weder Homebrew noch Python auf ihrem Mac.
 - **Stiller yt-dlp Background-Updater**: Aktualisiert die Engine automatisch im Hintergrund (alle 12 Stunden gedrosselt).
 - **YouTube 360p Fix**: Höchste Videoauflösungen (4K, 1440p, 1080p, 720p) wieder uneingeschränkt verfügbar.
 
+### 🎨 Design & UI
+- **Format- & Qualitäts-Dropdowns**: Verbreiterte Dropdown-Menüs direkt neben dem Thumbnail auf voller Zeilenbreite für optimale Übersicht.
+- **Plattform-adaptiver Analysieren-Button**: Dynamische Übernahme der Markenfarben (YouTube Rot, TikTok Cyan, Kick Neon, etc.) mit angepassten Textkontrasten.
+
 ### ⚙️ Pipeline & Automatisierung
 - **1-Klick GitHub Release Pipeline**: Skript `release.sh` zur automatischen Versionierung, Kompilierung, DMG-Erstellung und Release-Veröffentlichung.
-- **Changelog-Tracking**: Strukturierte Release-Notes direkt im Repository.
+- **Changelog-Tracking**: Zentrale Erfassung aller Versionsschritte direkt im Repository.
 
 ---
 
