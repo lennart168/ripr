@@ -1008,23 +1008,9 @@ public struct AutoDownloaderView: View {
                     y: 3
                 )
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("ripr")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule().fill(Color.primary.opacity(0.07))
-                        )
-                        .overlay(
-                            Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
-                        )
-                }
+                Text("ripr")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
             }
 
             Text("Füge einen beliebigen Link von YouTube, TikTok, Instagram, Twitch oder dem Web ein.")
