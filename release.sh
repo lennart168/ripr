@@ -43,7 +43,7 @@ echo "💿 Erstelle DMG..."
 
 # 4. Änderungen comitten
 echo "📦 Erstelle Git Commit..."
-git add SwiftApp/Info.plist SwiftApp/Sources/ 2>/dev/null || true
+git add SwiftApp/Info.plist SwiftApp/Sources/ CHANGELOG.md 2>/dev/null || true
 git commit -m "Release ${TAG}: ${TITLE}" || echo "Keine Code-Änderungen zu committen."
 
 # 5. Git Tag lokal erstellen (ggf. alten Tag überschreiben)
