@@ -1435,6 +1435,7 @@ public struct SettingsView: View {
     @ObservedObject private var settings = SettingsManager.shared
     @ObservedObject private var updater = UpdaterService.shared
     @ObservedObject private var appUpdater = AppUpdaterService.shared
+    @ObservedObject private var notifications = NotificationService.shared
 
     public var body: some View {
         ScrollView {
@@ -1740,9 +1741,21 @@ public struct SettingsView: View {
                     .shadow(color: Color.black.opacity(0.12), radius: 12, x: 0, y: 5)
 
                     // macOS Benachrichtigungen
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("macOS Benachrichtigungen", systemImage: "bell.badge.fill")
-                            .font(.system(size: 14, weight: .bold))
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Label("macOS Benachrichtigungen", systemImage: "bell.badge.fill")
+                                .font(.system(size: 14, weight: .bold))
+                            Spacer()
+                            if notifications.authorizationStatus == .authorized {
+                                Label("Aktiviert", systemImage: "checkmark.circle.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.green)
+                            } else {
+                                Label("Ausstehend / Erlaubnis nötig", systemImage: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.orange)
+                            }
+                        }
 
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -1759,6 +1772,32 @@ public struct SettingsView: View {
                             Toggle("", isOn: $settings.sendDownloadNotification)
                                 .toggleStyle(.switch)
                                 .labelsHidden()
+                        }
+
+                        Divider().opacity(0.15)
+
+                        HStack(spacing: 10) {
+                            if notifications.authorizationStatus != .authorized {
+                                Button(action: { notifications.requestAuthorization() }) {
+                                    Label("Mitteilungen erlauben", systemImage: "hand.raised.fill")
+                                }
+                                .buttonStyle(ProminentGlassButtonStyle(
+                                    gradient: LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    cornerRadius: 8,
+                                    horizontalPadding: 10,
+                                    verticalPadding: 6
+                                ))
+
+                                Button(action: { notifications.openSystemNotificationSettings() }) {
+                                    Label("In Systemeinstellungen öffnen", systemImage: "gearshape")
+                                }
+                                .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8, horizontalPadding: 10, verticalPadding: 6))
+                            }
+
+                            Button(action: { notifications.sendTestNotification() }) {
+                                Label("Test-Mitteilung senden", systemImage: "bell.and.waveform")
+                            }
+                            .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8, horizontalPadding: 10, verticalPadding: 6))
                         }
                     }
                     .padding(18)
@@ -2062,6 +2101,108 @@ public struct AppUpdateBannerView: View {
     }
 }
 
+// MARK: - In-App Download Finished Toast
+public struct InAppDownloadToastView: View {
+    @ObservedObject private var notifications = NotificationService.shared
+
+    public var body: some View {
+        Group {
+            if notifications.showInAppToast, let item = notifications.latestFinishedDownload {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient(colors: [.green, .mint], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("Download abgeschlossen")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.primary)
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            Text("ripr")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+
+                        Text(item.title)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            notifications.showInFinder(atPath: item.filePath)
+                        }) {
+                            Label("Im Finder anzeigen", systemImage: "folder")
+                        }
+                        .buttonStyle(ProminentGlassButtonStyle(
+                            gradient: LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            cornerRadius: 8,
+                            horizontalPadding: 10,
+                            verticalPadding: 6
+                        ))
+
+                        Button(action: {
+                            notifications.openFile(atPath: item.filePath)
+                        }) {
+                            Label("Öffnen", systemImage: "arrow.up.right")
+                        }
+                        .buttonStyle(LiquidGlassButtonStyle(cornerRadius: 8, horizontalPadding: 10, verticalPadding: 6))
+
+                        Button(action: {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                notifications.showInAppToast = false
+                            }
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
+                                .frame(width: 24, height: 24)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 2)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.regularMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color.green.opacity(0.4), Color.white.opacity(0.15)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                        .shadow(color: Color.black.opacity(0.25), radius: 14, x: 0, y: 6)
+                )
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: notifications.showInAppToast)
+    }
+}
+
 // MARK: - Main Content View (Liquid Glass Shell)
 public struct ContentView: View {
     @ObservedObject private var router = TabRouter.shared
@@ -2100,6 +2241,12 @@ public struct ContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            // In-App Toast Overlay unten
+            VStack {
+                Spacer()
+                InAppDownloadToastView()
             }
         }
         .frame(width: 900, height: 680)
