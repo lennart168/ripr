@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import Combine
+import UniformTypeIdentifiers
 
 public struct DownloadHistoryItem: Identifiable, Codable {
     public let id: UUID
@@ -51,6 +52,68 @@ public struct DownloadHistoryItem: Identifiable, Codable {
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "de_DE")
         return formatter.string(from: downloadDate)
+    }
+
+    public var fileURL: URL {
+        URL(fileURLWithPath: filePath)
+    }
+
+    public func makeItemProvider() -> NSItemProvider {
+        guard fileExists else { return NSItemProvider() }
+        let url = fileURL
+        let provider = NSItemProvider(object: url as NSURL)
+        provider.suggestedName = url.lastPathComponent
+
+        let uti: String
+        if isDirectory {
+            uti = UTType.folder.identifier
+        } else if let extType = UTType(filenameExtension: url.pathExtension) {
+            uti = extType.identifier
+        } else {
+            uti = UTType.item.identifier
+        }
+
+        provider.registerFileRepresentation(
+            forTypeIdentifier: uti,
+            fileOptions: .openInPlace,
+            visibility: .all
+        ) { completion in
+            completion(url, true, nil)
+            return nil
+        }
+
+        return provider
+    }
+}
+
+extension URL {
+    public func makeFileItemProvider() -> NSItemProvider {
+        guard FileManager.default.fileExists(atPath: self.path) else { return NSItemProvider() }
+        let provider = NSItemProvider(object: self as NSURL)
+        provider.suggestedName = self.lastPathComponent
+
+        var isDir: ObjCBool = false
+        let isDirectory = FileManager.default.fileExists(atPath: self.path, isDirectory: &isDir) && isDir.boolValue
+
+        let uti: String
+        if isDirectory {
+            uti = UTType.folder.identifier
+        } else if let extType = UTType(filenameExtension: self.pathExtension) {
+            uti = extType.identifier
+        } else {
+            uti = UTType.item.identifier
+        }
+
+        provider.registerFileRepresentation(
+            forTypeIdentifier: uti,
+            fileOptions: .openInPlace,
+            visibility: .all
+        ) { completion in
+            completion(self, true, nil)
+            return nil
+        }
+
+        return provider
     }
 }
 

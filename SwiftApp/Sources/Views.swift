@@ -782,9 +782,18 @@ public struct MasterVideoCard: View {
                         .truncationMode(.middle)
 
                     Spacer()
+
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .help("Datei per Drag & Drop in andere Programme ziehen")
                 }
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.1), lineWidth: 0.6))
+                .onDrag {
+                    URL(fileURLWithPath: path).makeFileItemProvider()
+                }
             }
 
             HStack(spacing: 12) {
@@ -1213,6 +1222,9 @@ public struct MasterPlaylistCard: View {
                         horizontalPadding: 14,
                         verticalPadding: 8
                     ))
+                    .onDrag {
+                        URL(fileURLWithPath: path).makeFileItemProvider()
+                    }
                 }
 
                 Button(action: onReset) {
@@ -1932,7 +1944,7 @@ public struct HistoryView: View {
                     icon: "clock.arrow.circlepath",
                     color: .accentColor,
                     title: "Download-Historie",
-                    subtitle: "Alle deine heruntergeladenen Videos und Audiospuren übersichtlich an einem Ort."
+                    subtitle: "Alle deine Downloads im Überblick. Ziehe Dateien per Drag & Drop direkt in beliebige andere Programme."
                 )
 
                 if !history.items.isEmpty {
@@ -1985,9 +1997,19 @@ public struct HistoryView: View {
 public struct HistoryItemCard: View {
     public let item: DownloadHistoryItem
     public let onDelete: () -> Void
+    @State private var isHovered: Bool = false
 
     public var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
+            // Drag grip indicator
+            if item.fileExists {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(isHovered ? .secondary : .secondary.opacity(0.25))
+                    .frame(width: 14)
+                    .help("Datei per Drag & Drop in beliebige Programme ziehen (Finder, Premiere, Discord etc.)")
+            }
+
             // Thumbnail
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
@@ -2011,6 +2033,7 @@ public struct HistoryItemCard: View {
             }
             .frame(width: 84, height: 52)
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.1), lineWidth: 0.5))
+            .help(item.fileExists ? "Datei in andere Apps oder den Finder ziehen" : "")
 
             // Details
             VStack(alignment: .leading, spacing: 4) {
@@ -2089,8 +2112,71 @@ public struct HistoryItemCard: View {
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 14).fill(.regularMaterial))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.12), lineWidth: 0.6))
-        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(isHovered && item.fileExists ? Color.accentColor.opacity(0.35) : Color.white.opacity(0.12), lineWidth: isHovered && item.fileExists ? 1.0 : 0.6)
+        )
+        .shadow(color: Color.black.opacity(isHovered && item.fileExists ? 0.12 : 0.08), radius: isHovered && item.fileExists ? 10 : 8, x: 0, y: 3)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                self.isHovered = hovering
+            }
+        }
+        .onDrag({
+            item.makeItemProvider()
+        }, preview: {
+            HistoryDragPreview(item: item)
+        })
+    }
+}
+
+// MARK: - Drag & Drop Preview Token
+public struct HistoryDragPreview: View {
+    public let item: DownloadHistoryItem
+
+    public var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black.opacity(0.5))
+                    .frame(width: 52, height: 34)
+
+                if let thumbStr = item.thumbnailURL, let url = URL(string: thumbStr) {
+                    AsyncImage(url: url) { phase in
+                        if let img = phase.image {
+                            img.resizable().aspectRatio(contentMode: .fill)
+                                .frame(width: 52, height: 34).clipped().cornerRadius(6)
+                        } else {
+                            Image(systemName: item.isDirectory ? "play.square.stack.fill" : "play.rectangle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                        }
+                    }
+                } else {
+                    Image(systemName: item.isDirectory ? "play.square.stack.fill" : "film.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                }
+            }
+            .frame(width: 52, height: 34)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Text(item.fileName)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.75))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: 220, alignment: .leading)
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.black.opacity(0.88)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.2), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.35), radius: 10, x: 0, y: 5)
     }
 }
 
@@ -2859,6 +2945,9 @@ public struct InAppDownloadToastView: View {
                 )
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
+                .onDrag {
+                    URL(fileURLWithPath: item.filePath).makeFileItemProvider()
+                }
                 .transition(.asymmetric(
                     insertion: .move(edge: .bottom).combined(with: .opacity),
                     removal: .move(edge: .bottom).combined(with: .opacity)
